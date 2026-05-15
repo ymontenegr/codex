@@ -608,14 +608,16 @@ class CodexSidebar(Gtk.Box):
     def _ctx_btn(
         self, box: Gtk.Box, label: str, icon: str, cb, *, destructive=False
     ) -> None:
-        btn = Gtk.Button(
-            css_classes=["flat"] + (["destructive-action"] if destructive else [])
-        )
+        btn = Gtk.Button(css_classes=["flat"])
         row = Gtk.Box(
             spacing=3, margin_start=6, margin_end=6, margin_top=3, margin_bottom=3
         )
         row.append(Gtk.Image(icon_name=icon))
-        row.append(Gtk.Label(label=label, xalign=0, hexpand=True))
+        lbl = Gtk.Label(halign=Gtk.Align.START, hexpand=True)
+        lbl.set_label(label)
+        if destructive:
+            lbl.add_css_class("error")
+        row.append(lbl)
         btn.set_child(row)
 
         def _on_click(_btn):
