@@ -129,6 +129,18 @@ class CodexWindow(Adw.ApplicationWindow):
         prefs_btn.connect("clicked", lambda _: self.open_preferences())
         self._content_header.pack_end(prefs_btn)
 
+        # App menu button (About, etc.)
+        app_menu = Gio.Menu()
+        app_menu.append("Acerca de Codex", "app.about")
+        menu_btn = Gtk.MenuButton(
+            icon_name="open-menu-symbolic",
+            menu_model=app_menu,
+            tooltip_text="Menú",
+            css_classes=["flat"],
+        )
+        menu_btn.update_property([Gtk.AccessibleProperty.LABEL], ["Menú de la aplicación"])
+        self._content_header.pack_end(menu_btn)
+
         self._content_toolbar_view.add_top_bar(self._content_header)
 
         self._toolbar = EditorToolbar()

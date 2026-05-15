@@ -8,9 +8,9 @@ búsqueda full-text y modo escritura enfocada.
 
 - Jerarquía de tres niveles con CRUD completo (crear, renombrar, eliminar)
 - Editor WYSIWYG con auto-guardado cada 30 segundos y barra de herramientas
-- Referencias cruzadas `[[nombre-doc]]` navegables + panel de backlinks
+- Referencias cruzadas `[[nombre-doc]]` navegables + botón en toolbar + panel de backlinks
 - Búsqueda full-text en todos los documentos (SQLite FTS5, Ctrl+F)
-- Favoritos y documentos recientes en el panel lateral
+- Favoritos y documentos recientes en el panel lateral (recientes fijos en la mitad inferior)
 - Etiquetas con agrupación en el sidebar
 - Exportación a Markdown, texto plano y PDF (via pandoc + LaTeX)
 - Plantillas de documento (reunión, artículo, análisis, README)
@@ -18,6 +18,8 @@ búsqueda full-text y modo escritura enfocada.
 - Vista de grafo de conexiones entre documentos (Ctrl+G)
 - Contador de palabras y tiempo de lectura estimado
 - Tema claro/oscuro automático según preferencia del sistema
+- Pantalla de splash al iniciar con ícono, nombre y desarrollador
+- Menú de aplicación con diálogo "Acerca de"
 
 ## Requisitos del sistema
 
@@ -107,7 +109,7 @@ pytest tests/ --cov=src --cov-report=term-missing
 | Ctrl+B | Negrita |
 | Ctrl+I | Cursiva |
 | Ctrl+Shift+C | Código inline |
-| `[[` | Insertar referencia cruzada |
+| `[[` o botón `[[…]]` | Insertar referencia cruzada |
 | Esc | Salir del modo enfocado |
 | F11 | Pantalla completa |
 | Ctrl+Q | Salir |
@@ -121,7 +123,7 @@ codex/
 │   ├── window.py            # Ventana principal
 │   ├── models/              # Book, Chapter, Document, Tag
 │   ├── services/            # Database, Storage, Indexer, Exporter, GraphService, Settings
-│   ├── widgets/             # Editor, Sidebar, Toolbar, BacklinksPanel, GraphView…
+│   ├── widgets/             # Editor, Sidebar, Toolbar, BacklinksPanel, GraphView, Splash…
 │   └── utils/               # Markdown parser
 ├── data/
 │   ├── js/editor.js         # Lógica del editor WYSIWYG
@@ -133,6 +135,20 @@ codex/
 └── io.github.ymontenegr.Codex.json  # Flatpak manifest
 ```
 
+## Historial de versiones
+
+### v1.1.0
+- Pantalla de splash al iniciar (ícono, nombre de la app, desarrollador)
+- Menú de aplicación con opción "Acerca de Codex" (versión, tecnología, desarrollador)
+- Documentos recientes fijos en la mitad inferior del sidebar, separados del árbol
+- Botón `[[…]]` en la toolbar para insertar referencias a documentos internos
+- Nombre del desarrollador: Yovani Montenegro
+
+### v1.0.0
+- Primera versión funcional con jerarquía Libro → Capítulo → Documento
+- Editor WYSIWYG (WebKit), búsqueda full-text, exportación PDF, vista de grafo
+- Correcciones de compatibilidad: Yaru icon theme, WebKit sandbox, sidebar layout
+
 ## Licencia
 
-GPL-3.0-or-later © 2026 ymontenegr
+GPL-3.0-or-later © 2026 Yovani Montenegro

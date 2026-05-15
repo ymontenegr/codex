@@ -233,6 +233,10 @@ class CodexEditorWidget(Gtk.Box):
     def insert_code(self) -> None:
         self._js("window._editor && window._editor.insertCode();")
 
+    def trigger_crossref(self) -> None:
+        """Open the cross-reference picker (same as typing [[)."""
+        GLib.idle_add(self._show_crossref_dialog)
+
     # ── Internal: JS execution ────────────────────────────────────────────────
 
     def _js(self, script: str) -> None:

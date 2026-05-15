@@ -86,8 +86,15 @@ class EditorToolbar(Gtk.Box):
         # Link — insert-link-symbolic (§7 iconografía)
         self._btn_icon(
             "insert-link-symbolic",
-            "Insertar enlace",
+            "Insertar enlace web",
             self._show_link_dialog,
+        )
+
+        # Cross-reference — internal document link [[nombre]]
+        self._btn_label(
+            "[[…]]",
+            "Insertar referencia a documento interno",
+            lambda: self._editor and self._editor.trigger_crossref(),
         )
 
     # ── Command helpers ───────────────────────────────────────────────────────

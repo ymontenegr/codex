@@ -32,10 +32,13 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 gi.require_version("WebKit", "6.0")
 
-from gi.repository import Adw, Gio, Gtk
+from gi.repository import Adw, GLib, Gio, Gtk
+from .widgets.splash import SplashScreen
 from .window import CodexWindow
 
 APP_ID = "io.github.ymontenegr.Codex"
+APP_VERSION = "1.1.0"
+DEVELOPER_NAME = "Yovani Montenegro"
 
 
 class CodexApplication(Adw.Application):
@@ -44,45 +47,61 @@ class CodexApplication(Adw.Application):
             application_id=APP_ID,
             flags=Gio.ApplicationFlags.DEFAULT_FLAGS,
         )
-        # error #3 — acciones con atajos de teclado
         self._create_action("quit", self.quit, ["<primary>q"])
         self._create_action("about", self._on_about)
         self._create_action("new-document", self._on_new_document, ["<primary>n"])
         self._create_action("search", self._on_search, ["<primary>f"])
-        # Shortcuts for these are registered at window level (win.*) to avoid conflicts
         self._create_action("graph-view", self._on_graph_view)
         self._create_action("focus-mode", self._on_focus_mode)
         self._create_action("export", self._on_export)
-        self._create_action("save", self._on_save)  # Ctrl+S lo maneja win.save-document
+        self._create_action("save", self._on_save)
 
     def do_activate(self):
-        # error #8 — respetar la preferencia de color del sistema
         Adw.StyleManager.get_default().set_color_scheme(Adw.ColorScheme.DEFAULT)
 
+        # If a window already exists (re-activation), just raise it
         win = self.get_active_window()
-        if not win:
-            win = CodexWindow(application=self)
-        win.set_icon_name("io.github.ymontenegr.Codex")
-        win.present()
+        if win:
+            win.present()
+            return
 
-    # ── Handlers de acciones ──────────────────────────────────────────────────
+        # First launch: show splash, then open the main window
+        splash = SplashScreen(application=self)
+        splash.show_then(2000, self._launch_main_window)
+
+    def _launch_main_window(self) -> bool:
+        win = CodexWindow(application=self)
+        win.set_icon_name(APP_ID)
+        win.present()
+        # Close splash (it is the only other window registered with the app)
+        for w in self.get_windows():
+            if isinstance(w, SplashScreen):
+                w.close()
+        return GLib.SOURCE_REMOVE
+
+    # ── Action handlers ───────────────────────────────────────────────────────
 
     def _on_about(self, *_):
         dialog = Adw.AboutDialog(
             application_name="Codex",
             application_icon=APP_ID,
-            developer_name="ymontenegr",
-            version="0.1.0",
+            developer_name=DEVELOPER_NAME,
+            version=APP_VERSION,
             website="https://github.com/ymontenegr/codex",
             issue_url="https://github.com/ymontenegr/codex/issues",
-            developers=["ymontenegr"],
-            copyright="© 2025 ymontenegr",
+            developers=[DEVELOPER_NAME],
+            copyright=f"© 2026 {DEVELOPER_NAME}",
             license_type=Gtk.License.GPL_3_0,
+            comments=(
+                "Editor de documentos Markdown estructurado con referencias "
+                "cruzadas y vista de grafo.\n\n"
+                "Tecnología: Python 3.12 · GTK4 · Libadwaita · WebKit6 · SQLite"
+            ),
         )
         dialog.present(self.get_active_window())
 
     def _on_new_document(self, *_):
-        pass  # Sprint 2: delegar al editor activo
+        pass
 
     def _on_search(self, *_):
         win = self.get_active_window()
@@ -105,7 +124,7 @@ class CodexApplication(Adw.Application):
             win.show_export_dialog()
 
     def _on_save(self, *_):
-        pass  # Sprint 2: guardar documento activo
+        pass
 
     # ── Helper ────────────────────────────────────────────────────────────────
 

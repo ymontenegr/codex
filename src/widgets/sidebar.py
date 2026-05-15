@@ -76,7 +76,11 @@ class CodexSidebar(Gtk.Box):
         self._stack.add_named(self._build_empty_page(), "empty")
         self.append(self._stack)
 
-    def _build_tree_page(self) -> Gtk.ScrolledWindow:
+    def _build_tree_page(self) -> Gtk.Box:
+        # Top: scrollable tree + favorites + tags
+        # Bottom: recents pinned to the lower half (not inside the scroll)
+        container = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+
         scroll = Gtk.ScrolledWindow(
             vscrollbar_policy=Gtk.PolicyType.AUTOMATIC,
             hscrollbar_policy=Gtk.PolicyType.NEVER,
@@ -165,41 +169,6 @@ class CodexSidebar(Gtk.Box):
 
         outer.append(self._fav_section_box)
 
-        # ── Recents section ───────────────────────────────────────────────────
-        self._rec_section_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        self._rec_section_box.append(Gtk.Separator())
-
-        rec_hdr = Gtk.Box(
-            orientation=Gtk.Orientation.HORIZONTAL,
-            spacing=6,
-            margin_start=12,
-            margin_end=12,
-            margin_top=9,
-            margin_bottom=6,
-        )
-        rec_icon = Gtk.Image.new_from_icon_name("document-open-recent-symbolic")
-        rec_icon.add_css_class("dim-label")
-        rec_hdr.append(rec_icon)
-        rec_hdr.append(
-            Gtk.Label(
-                label="Recientes",
-                css_classes=["heading"],
-                halign=Gtk.Align.START,
-                hexpand=True,
-            )
-        )
-        self._rec_section_box.append(rec_hdr)
-
-        self._rec_list = Gtk.ListBox(css_classes=["boxed-list"])
-        self._rec_list.set_selection_mode(Gtk.SelectionMode.SINGLE)
-        self._rec_list.set_margin_start(12)
-        self._rec_list.set_margin_end(12)
-        self._rec_list.set_margin_bottom(9)
-        self._rec_list.connect("row-activated", self._on_section_row_activated)
-        self._rec_section_box.append(self._rec_list)
-
-        outer.append(self._rec_section_box)
-
         # ── Tags section ──────────────────────────────────────────────────────
         self._tags_section_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self._tags_section_box.append(Gtk.Separator())
@@ -232,7 +201,43 @@ class CodexSidebar(Gtk.Box):
         outer.append(self._tags_section_box)
 
         scroll.set_child(outer)
-        return scroll
+        container.append(scroll)
+
+        # ── Recents section — pinned to the bottom half ───────────────────────
+        self._rec_section_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self._rec_section_box.append(Gtk.Separator())
+
+        rec_hdr = Gtk.Box(
+            orientation=Gtk.Orientation.HORIZONTAL,
+            spacing=6,
+            margin_start=12,
+            margin_end=12,
+            margin_top=9,
+            margin_bottom=6,
+        )
+        rec_icon = Gtk.Image.new_from_icon_name("document-open-recent-symbolic")
+        rec_icon.add_css_class("dim-label")
+        rec_hdr.append(rec_icon)
+        rec_hdr.append(
+            Gtk.Label(
+                label="Recientes",
+                css_classes=["heading"],
+                halign=Gtk.Align.START,
+                hexpand=True,
+            )
+        )
+        self._rec_section_box.append(rec_hdr)
+
+        self._rec_list = Gtk.ListBox(css_classes=["boxed-list"])
+        self._rec_list.set_selection_mode(Gtk.SelectionMode.SINGLE)
+        self._rec_list.set_margin_start(12)
+        self._rec_list.set_margin_end(12)
+        self._rec_list.set_margin_bottom(9)
+        self._rec_list.connect("row-activated", self._on_section_row_activated)
+        self._rec_section_box.append(self._rec_list)
+
+        container.append(self._rec_section_box)
+        return container
 
     def _build_empty_page(self) -> Adw.StatusPage:
         empty = Adw.StatusPage(
