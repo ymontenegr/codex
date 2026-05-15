@@ -234,7 +234,21 @@ class CodexEditorWidget(Gtk.Box):
         self._js("window._editor && window._editor.insertCode();")
 
     def trigger_crossref(self) -> None:
-        """Open the cross-reference picker (same as typing [[)."""
+        """Open the cross-reference picker from the toolbar button.
+
+        Restores focus to the editor and saves the current cursor position
+        into _savedRange before the dialog opens, so codexInsertRef can
+        insert the anchor at the right place without requiring [[ to be typed.
+        """
+        self._js(
+            "if (window._editor) {"
+            "  window._editor._el.focus();"
+            "  const sel = window.getSelection();"
+            "  if (sel && sel.rangeCount) {"
+            "    window._editor._savedRange = sel.getRangeAt(0).cloneRange();"
+            "  }"
+            "}"
+        )
         GLib.idle_add(self._show_crossref_dialog)
 
     # ── Internal: JS execution ────────────────────────────────────────────────

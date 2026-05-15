@@ -292,8 +292,13 @@ function codexSetDark(isDark) {
 
 /**
  * Called from Python after the user picks a document in the cross-reference
- * dialog. Replaces the [[ immediately before the saved cursor with a proper
- * crossref anchor element.
+ * dialog. Inserts a crossref anchor at the saved cursor position.
+ *
+ * Two modes:
+ *  - Typing [[: _savedRange points right after [[, which is removed and
+ *    replaced by the anchor.
+ *  - Toolbar button: _savedRange points to wherever the cursor was;
+ *    no [[ removal needed, anchor is inserted directly at that position.
  */
 function codexInsertRef(name) {
   const editor = window._editor;
@@ -302,28 +307,33 @@ function codexInsertRef(name) {
   const range  = editor._savedRange;
   editor._savedRange = null;
 
-  const node = range.startContainer;
-  if (node.nodeType !== Node.TEXT_NODE) return;
-
-  const offset = range.startOffset;
-  const text   = node.textContent;
-  const before = text.substring(0, offset);
-  const idx    = before.lastIndexOf('[[');
-  if (idx === -1) return;
-
   // Build the crossref anchor
   const a = document.createElement('a');
-  a.className  = 'crossref';
-  a.href       = '#';
+  a.className   = 'crossref';
+  a.href        = '#';
   a.dataset.ref = name;
   a.textContent = name;
 
-  // Split the text node around the anchor
-  const afterNode = document.createTextNode(text.substring(offset));
-  node.textContent = before.substring(0, idx);
-  const parent = node.parentNode;
-  parent.insertBefore(afterNode, node.nextSibling);
-  parent.insertBefore(a, afterNode);
+  const node = range.startContainer;
+  if (node.nodeType === Node.TEXT_NODE) {
+    const offset = range.startOffset;
+    const text   = node.textContent;
+    const before = text.substring(0, offset);
+    const idx    = before.lastIndexOf('[[');
+
+    // Remove [[ if it immediately precedes the cursor (typing path)
+    const removePrefix = idx !== -1 && before.substring(idx) === '[[';
+    const splitAt      = removePrefix ? idx : offset;
+
+    const afterNode = document.createTextNode(text.substring(offset));
+    node.textContent = text.substring(0, splitAt);
+    const parent = node.parentNode;
+    parent.insertBefore(afterNode, node.nextSibling);
+    parent.insertBefore(a, afterNode);
+  } else {
+    // Cursor is not inside a text node — insert at range start
+    range.insertNode(a);
+  }
 
   // Place cursor right after the inserted anchor
   const sel      = window.getSelection();
