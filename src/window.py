@@ -301,14 +301,32 @@ class CodexWindow(Adw.ApplicationWindow):
             Gtk.Label(label="Vista de Grafo", css_classes=["heading"])
         )
 
-        refresh_btn = Gtk.Button(
-            icon_name="view-refresh-symbolic",
-            css_classes=["flat"],
-            tooltip_text="Recargar grafo",
-        )
-        refresh_btn.update_property([Gtk.AccessibleProperty.LABEL], ["Recargar grafo"])
-        refresh_btn.connect("clicked", lambda _: gv.reload())
-        header.pack_end(refresh_btn)
+        def _graph_btn(icon, tip, cb):
+            btn = Gtk.Button(icon_name=icon, css_classes=["flat"], tooltip_text=tip)
+            btn.connect("clicked", lambda _: cb())
+            return btn
+
+        header.pack_end(_graph_btn("view-refresh-symbolic", "Recargar grafo", gv.reload))
+
+        # PDF export
+        def _export_pdf():
+            fd = Gtk.FileDialog()
+            fd.set_title("Guardar grafo como PDF")
+            fd.set_initial_name("grafo-codex.pdf")
+
+            def on_save(_fd, result):
+                try:
+                    gfile = _fd.save_finish(result)
+                except Exception:
+                    return
+                gv.export_pdf(gfile.get_path())
+
+            fd.save(win, None, on_save)
+
+        header.pack_end(_graph_btn("document-save-as-symbolic", "Exportar PDF (tamaño carta)", _export_pdf))
+        header.pack_end(_graph_btn("zoom-fit-best-symbolic",    "Centrar grafo",              gv.fit_to_view))
+        header.pack_end(_graph_btn("zoom-out-symbolic",         "Alejar",                     gv.zoom_out))
+        header.pack_end(_graph_btn("zoom-in-symbolic",          "Acercar",                    gv.zoom_in))
 
         tv = Adw.ToolbarView()
         tv.add_top_bar(header)

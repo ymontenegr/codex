@@ -15,7 +15,7 @@ búsqueda full-text y modo escritura enfocada.
 - Exportación a Markdown, texto plano y PDF (via pandoc + LaTeX)
 - Plantillas de documento (reunión, artículo, análisis, README)
 - Modo escritura enfocada sin distracciones (Ctrl+Shift+F / Esc)
-- Vista de grafo de conexiones entre documentos (Ctrl+G)
+- Vista de grafo de conexiones entre documentos (Ctrl+G) con zoom, centrado y exportación a PDF
 - Contador de palabras y tiempo de lectura estimado
 - Tema claro/oscuro automático según preferencia del sistema
 - Pantalla de splash al iniciar con ícono, nombre y desarrollador
@@ -136,6 +136,19 @@ codex/
 ```
 
 ## Historial de versiones
+
+### v1.2.0
+**Nuevas funcionalidades**
+- Vista de grafo: auto-centrado al abrir (el grafo se ajusta al tamaño del lienzo automáticamente)
+- Vista de grafo: botones de zoom in y zoom out en la barra de herramientas
+- Vista de grafo: botón para centrar/ajustar el grafo en cualquier momento
+- Vista de grafo: exportación del grafo a PDF tamaño carta (8.5 × 11 in) desde la barra de herramientas
+
+**Corrección de errores**
+- Splash screen aparecía en la esquina superior izquierda en Wayland → centrada usando `transient_for` + `modal`
+- La ventana principal no se abría maximizada al iniciar → se agrega `win.maximize()` al activar la aplicación
+- Creación y renombrado de libros, capítulos y documentos requería dos clics en el botón → reemplazado `Adw.EntryRow` con `Gtk.Entry(activates_default=True)`
+- Inserción de referencias cruzadas desde el botón de toolbar no funcionaba → se guarda la posición del cursor vía JavaScript antes de abrir el diálogo
 
 ### v1.1.0
 - Pantalla de splash al iniciar (ícono, nombre de la app, desarrollador)

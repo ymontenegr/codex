@@ -11,6 +11,9 @@ from gi.repository import Adw, GObject, Gtk
 
 from ..services.graph_service import GraphNode, GraphService
 
+# Letter size in Cairo points (72 pt/inch)
+_PDF_W, _PDF_H = 612.0, 792.0
+
 
 class GraphView(Gtk.Box):
     """
@@ -43,6 +46,9 @@ class GraphView(Gtk.Box):
         self._scale = 1.0
         self._offset_x = 0.0
         self._offset_y = 0.0
+
+        # Fit-to-view on first draw
+        self._needs_fit = True
 
         # Interaction state
         self._hover_id: int | None = None
@@ -88,6 +94,7 @@ class GraphView(Gtk.Box):
         self._nodes, self._edges = self._gs.get_graph_data()
         self._init_positions()
         self._run_layout()
+        self._needs_fit = True
         self._da.queue_draw()
 
     def reload(self) -> None:
@@ -150,7 +157,7 @@ class GraphView(Gtk.Box):
                 self._pos[nid][0] += dx / dist * min(dist, temp)
                 self._pos[nid][1] += dy / dist * min(dist, temp)
 
-        # Center graph at origin
+        # Center graph at world origin
         if ids:
             cx = sum(self._pos[nid][0] for nid in ids) / len(ids)
             cy = sum(self._pos[nid][1] for nid in ids) / len(ids)
@@ -186,9 +193,125 @@ class GraphView(Gtk.Box):
                 return node.id
         return None
 
+    # ── Fit to view ───────────────────────────────────────────────────────────
+
+    def _compute_fit(self, width: int, height: int) -> tuple[float, float, float]:
+        """Return (scale, offset_x, offset_y) that fits all nodes in the canvas."""
+        if not self._pos:
+            return 1.0, 0.0, 0.0
+        pad = self._MAX_R + 30
+        xs = [p[0] for p in self._pos.values()]
+        ys = [p[1] for p in self._pos.values()]
+        min_x, max_x = min(xs) - pad, max(xs) + pad
+        min_y, max_y = min(ys) - pad, max(ys) + pad
+        graph_w = max_x - min_x or 1.0
+        graph_h = max_y - min_y or 1.0
+        scale = min(width / graph_w, height / graph_h, 2.0)
+        cx = (min_x + max_x) / 2
+        cy = (min_y + max_y) / 2
+        return scale, -cx * scale, -cy * scale
+
+    def fit_to_view(self) -> None:
+        """Fit all nodes into the visible area (center button)."""
+        w = self._da.get_allocated_width()
+        h = self._da.get_allocated_height()
+        self._scale, self._offset_x, self._offset_y = self._compute_fit(w, h)
+        self._da.queue_draw()
+
+    # ── Zoom controls (called from toolbar buttons) ────────────────────────────
+
+    def zoom_in(self) -> None:
+        self._scale = min(8.0, self._scale * 1.25)
+        self._da.queue_draw()
+
+    def zoom_out(self) -> None:
+        self._scale = max(0.1, self._scale / 1.25)
+        self._da.queue_draw()
+
+    # ── PDF export ────────────────────────────────────────────────────────────
+
+    def export_pdf(self, dest_path: str) -> None:
+        """Render the current graph to a PDF file (Letter, 8.5×11 in)."""
+        import cairo
+
+        pad = 48.0
+        avail_w = _PDF_W - 2 * pad
+        avail_h = _PDF_H - 2 * pad - 30  # reserve top for title
+
+        surface = cairo.PDFSurface(dest_path, _PDF_W, _PDF_H)
+        cr = cairo.Context(surface)
+
+        # Title
+        cr.set_font_size(14)
+        cr.set_source_rgba(0.1, 0.1, 0.1, 1.0)
+        cr.move_to(pad, pad - 10)
+        cr.show_text("Vista de Grafo — Codex")
+
+        if self._pos:
+            node_pad = self._MAX_R + 10
+            xs = [p[0] for p in self._pos.values()]
+            ys = [p[1] for p in self._pos.values()]
+            min_x, max_x = min(xs) - node_pad, max(xs) + node_pad
+            min_y, max_y = min(ys) - node_pad, max(ys) + node_pad
+            graph_w = max_x - min_x or 1.0
+            graph_h = max_y - min_y or 1.0
+            scale = min(avail_w / graph_w, avail_h / graph_h)
+
+            def to_pdf(wx, wy):
+                cx_world = (min_x + max_x) / 2
+                cy_world = (min_y + max_y) / 2
+                return (
+                    pad + avail_w / 2 + (wx - cx_world) * scale,
+                    pad + 30 + avail_h / 2 + (wy - cy_world) * scale,
+                )
+
+            # Edges
+            cr.set_line_width(0.8)
+            cr.set_source_rgba(0.5, 0.5, 0.5, 0.45)
+            for src_id, tgt_id in self._edges:
+                if src_id not in self._pos or tgt_id not in self._pos:
+                    continue
+                sx, sy = to_pdf(*self._pos[src_id])
+                tx, ty = to_pdf(*self._pos[tgt_id])
+                cr.move_to(sx, sy)
+                cr.line_to(tx, ty)
+                cr.stroke()
+
+            # Nodes
+            for node in self._nodes:
+                pos = self._pos.get(node.id)
+                if not pos:
+                    continue
+                sx, sy = to_pdf(*pos)
+                r = self._node_radius(node) * scale
+
+                cr.arc(sx, sy, r, 0, 2 * math.pi)
+                cr.set_source_rgba(*node.color, 0.85)
+                cr.fill_preserve()
+                cr.set_source_rgba(1.0, 1.0, 1.0, 0.3)
+                cr.set_line_width(0.6)
+                cr.stroke()
+
+                label = node.name[:18] + "…" if len(node.name) > 18 else node.name
+                font_size = max(6.0, min(9.0, r * 0.42))
+                cr.set_font_size(font_size)
+                ext = cr.text_extents(label)
+                cr.set_source_rgba(0.08, 0.08, 0.08, 0.95)
+                cr.move_to(sx - ext.width / 2, sy + ext.height / 2)
+                cr.show_text(label)
+
+        surface.finish()
+
     # ── Drawing ───────────────────────────────────────────────────────────────
 
     def _on_draw(self, _da, cr, width: int, height: int) -> None:
+        # Fit all nodes into view on the first draw after loading
+        if self._needs_fit and self._pos:
+            self._scale, self._offset_x, self._offset_y = self._compute_fit(
+                width, height
+            )
+            self._needs_fit = False
+
         is_dark = Adw.StyleManager.get_default().get_dark()
 
         # ── Edges ────────────────────────────────────────────────────────────
@@ -212,13 +335,11 @@ class GraphView(Gtk.Box):
             r = self._node_radius(node) * self._scale
             is_hovered = node.id == self._hover_id
 
-            # Circle fill
             cr.arc(sx, sy, r, 0, 2 * math.pi)
             alpha = 1.0 if is_hovered else 0.80
             cr.set_source_rgba(*node.color, alpha)
             cr.fill_preserve()
 
-            # Circle border
             if is_hovered:
                 cr.set_source_rgba(1.0, 1.0, 1.0, 0.6)
                 cr.set_line_width(2.5)
@@ -227,7 +348,6 @@ class GraphView(Gtk.Box):
                 cr.set_line_width(1.2)
             cr.stroke()
 
-            # Label (truncated to 18 chars)
             label = node.name[:18] + "…" if len(node.name) > 18 else node.name
             font_size = max(8.0, min(11.0, r * 0.38))
             cr.set_font_size(font_size)
@@ -307,7 +427,6 @@ class GraphView(Gtk.Box):
 
     def _on_drag_end(self, _gesture, dx: float, dy: float) -> None:
         if self._drag_node_id is not None:
-            # Tiny movement → treat as click
             if abs(dx) < 5 and abs(dy) < 5:
                 self.emit("navigate-document", self._drag_node_id)
             self._drag_node_id = None
