@@ -16,6 +16,9 @@ búsqueda full-text y modo escritura enfocada.
 - Plantillas de documento (reunión, artículo, análisis, README)
 - Modo escritura enfocada sin distracciones (Ctrl+Shift+F / Esc)
 - Vista de grafo de conexiones entre documentos (Ctrl+G) con zoom, centrado y exportación a PDF
+- Buscador en el sidebar para filtrar libros, capítulos y documentos con resaltado de coincidencias
+- Buscador dentro del documento activo en la barra de herramientas del editor (WebKit FindController)
+- Eliminación de libros, capítulos y documentos con validación de contenido y confirmación
 - Contador de palabras y tiempo de lectura estimado
 - Tema claro/oscuro automático según preferencia del sistema
 - Pantalla de splash al iniciar con ícono, nombre y desarrollador
@@ -136,6 +139,15 @@ codex/
 ```
 
 ## Historial de versiones
+
+### v1.4.0
+**Nuevas funcionalidades**
+- Ícono de la aplicación visible en la cabecera del sidebar, al lado del título "Biblioteca"
+- Título de la ventana principal muestra nombre de la app y versión (`Adw.WindowTitle`)
+- Buscador en el sidebar (lupa junto al "+") filtra libros, capítulos y documentos; resalta coincidencias en negrita
+- Buscador de texto dentro del documento activo en la barra de herramientas; navega con Intro/Shift+Intro
+- Eliminación de libros y capítulos valida que estén vacíos antes de mostrar confirmación; muestra mensaje de error si contienen elementos
+- Sección "Recientes" limitada a los 5 últimos documentos abiertos
 
 ### v1.2.0
 **Nuevas funcionalidades**

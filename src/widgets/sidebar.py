@@ -4,7 +4,7 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 gi.require_version("Gdk", "4.0")
 
-from gi.repository import Adw, Gdk, GObject, Gtk
+from gi.repository import Adw, Gdk, GLib, GObject, Gtk
 
 from ..models import Book, Chapter, Document
 from ..services import Database, StorageError, StorageService
@@ -46,6 +46,7 @@ class CodexSidebar(Gtk.Box):
         self._storage = storage
         self._db = db
         self._ctx_popover: Gtk.Popover | None = None
+        self._search_query = ""
         self._setup_ui()
         self._load()
 
@@ -55,7 +56,28 @@ class CodexSidebar(Gtk.Box):
         header = Adw.HeaderBar()
         header.set_show_start_title_buttons(False)
         header.set_show_end_title_buttons(False)
-        header.set_title_widget(Gtk.Label(label="Biblioteca", css_classes=["heading"]))
+
+        # Title: app icon + "Biblioteca"
+        title_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        app_icon = Gtk.Image.new_from_icon_name("io.github.ymontenegr.Codex")
+        app_icon.set_pixel_size(22)
+        title_box.append(app_icon)
+        title_box.append(Gtk.Label(label="Biblioteca", css_classes=["heading"]))
+        header.set_title_widget(title_box)
+
+        # Search toggle button
+        self._search_toggle = Gtk.ToggleButton(
+            icon_name="system-search-symbolic",
+            tooltip_text="Buscar en biblioteca",
+            css_classes=["flat"],
+        )
+        self._search_toggle.update_property(
+            [Gtk.AccessibleProperty.LABEL], ["Buscar en biblioteca"]
+        )
+        self._search_toggle.connect("toggled", self._on_search_toggled)
+        header.pack_end(self._search_toggle)
+
+        # New book button
         new_book_btn = Gtk.Button(
             icon_name="list-add-symbolic",
             tooltip_text="Nuevo libro",
@@ -68,6 +90,24 @@ class CodexSidebar(Gtk.Box):
         header.pack_end(new_book_btn)
         self.append(header)
 
+        # Search bar (hidden by default, shown when toggle is active)
+        self._search_entry = Gtk.SearchEntry(
+            placeholder_text="Buscar libros, capítulos y documentos…",
+            hexpand=True,
+            margin_start=8,
+            margin_end=8,
+            margin_top=4,
+            margin_bottom=4,
+        )
+        self._search_entry.connect("search-changed", self._on_search_changed)
+        self._search_entry.connect("stop-search", self._on_search_stop)
+
+        self._search_bar = Gtk.SearchBar(show_close_button=False)
+        self._search_bar.set_child(self._search_entry)
+        self._search_bar.connect_entry(self._search_entry)
+        self._search_bar.set_search_mode(False)
+        self.append(self._search_bar)
+
         self._stack = Gtk.Stack()
         self._stack.set_vexpand(True)
         self._stack.set_transition_type(Gtk.StackTransitionType.CROSSFADE)
@@ -77,8 +117,6 @@ class CodexSidebar(Gtk.Box):
         self.append(self._stack)
 
     def _build_tree_page(self) -> Gtk.Box:
-        # Top: scrollable tree + favorites + tags
-        # Bottom: recents pinned to the lower half (not inside the scroll)
         container = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
         scroll = Gtk.ScrolledWindow(
@@ -91,8 +129,11 @@ class CodexSidebar(Gtk.Box):
 
         # ── TreeView ──────────────────────────────────────────────────────────
         self._store = Gtk.TreeStore(str, str, GObject.TYPE_PYOBJECT, str)
+        self._filter = self._store.filter_new()
+        self._filter.set_visible_func(self._filter_visible)
+
         self._tree = Gtk.TreeView(
-            model=self._store,
+            model=self._filter,
             headers_visible=False,
             activate_on_single_click=True,
             enable_tree_lines=True,
@@ -100,15 +141,15 @@ class CodexSidebar(Gtk.Box):
         )
         self._tree.set_level_indentation(12)
 
-        # Main column: icon + name
+        # Main column: icon + name (cell data func for search highlight)
         col = Gtk.TreeViewColumn()
         icon_r = Gtk.CellRendererPixbuf()
-        text_r = Gtk.CellRendererText()
-        text_r.set_property("ellipsize", 3)  # Pango.EllipsizeMode.END
+        self._text_r = Gtk.CellRendererText()
+        self._text_r.set_property("ellipsize", 3)  # Pango.EllipsizeMode.END
         col.pack_start(icon_r, False)
-        col.pack_start(text_r, True)
+        col.pack_start(self._text_r, True)
         col.add_attribute(icon_r, "icon-name", _C_ICON)
-        col.add_attribute(text_r, "text", _C_NAME)
+        col.set_cell_data_func(self._text_r, self._text_cell_data)
         col.set_spacing(3)
         col.set_expand(True)
         self._tree.append_column(col)
@@ -194,7 +235,6 @@ class CodexSidebar(Gtk.Box):
         )
         self._tags_section_box.append(tags_hdr)
 
-        # Individual tag rows are built dynamically in _load_tags()
         self._tags_container = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self._tags_section_box.append(self._tags_container)
 
@@ -278,6 +318,7 @@ class CodexSidebar(Gtk.Box):
                         it_c, [doc.name, "document", doc, _ICONS["document"]]
                     )
 
+        self._filter.refilter()
         self._tree.expand_all()
         self._stack.set_visible_child_name("empty" if not books else "tree")
 
@@ -306,7 +347,7 @@ class CodexSidebar(Gtk.Box):
         while (row := self._rec_list.get_row_at_index(0)) is not None:
             self._rec_list.remove(row)
 
-        recents = self._db.get_recent_documents()
+        recents = self._db.get_recent_documents(limit=5)
         for doc in recents:
             row = Gtk.ListBoxRow()
             row._doc = doc
@@ -334,10 +375,8 @@ class CodexSidebar(Gtk.Box):
                 continue
             has_any = True
 
-            # Row wrapper
             tag_row = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
-            # Toggle button
             toggle_box = Gtk.Box(
                 orientation=Gtk.Orientation.HORIZONTAL,
                 spacing=6,
@@ -359,7 +398,6 @@ class CodexSidebar(Gtk.Box):
             toggle_btn.set_hexpand(True)
             tag_row.append(toggle_btn)
 
-            # Revealer with document list
             doc_list = Gtk.ListBox(css_classes=["boxed-list"])
             doc_list.set_selection_mode(Gtk.SelectionMode.SINGLE)
             doc_list.set_margin_start(24)
@@ -407,7 +445,53 @@ class CodexSidebar(Gtk.Box):
         """Refresh tree, favorites, and recents."""
         self._load()
 
-    # ── Star cell data function ───────────────────────────────────────────────
+    # ── Search / filter ───────────────────────────────────────────────────────
+
+    def _on_search_toggled(self, btn: Gtk.ToggleButton) -> None:
+        active = btn.get_active()
+        self._search_bar.set_search_mode(active)
+        if active:
+            self._search_entry.grab_focus()
+        else:
+            self._search_entry.set_text("")
+
+    def _on_search_changed(self, entry: Gtk.SearchEntry) -> None:
+        self._search_query = entry.get_text().strip().lower()
+        self._filter.refilter()
+        self._tree.expand_all()
+
+    def _on_search_stop(self, _entry) -> None:
+        self._search_toggle.set_active(False)
+
+    def _filter_visible(self, model, it, _data) -> bool:
+        if not self._search_query:
+            return True
+        return self._node_matches(model, it, self._search_query)
+
+    def _node_matches(self, model, it, query: str) -> bool:
+        name = model.get_value(it, _C_NAME) or ""
+        if query in name.lower():
+            return True
+        child = model.iter_children(it)
+        while child:
+            if self._node_matches(model, child, query):
+                return True
+            child = model.iter_next(child)
+        return False
+
+    # ── Cell data functions ───────────────────────────────────────────────────
+
+    def _text_cell_data(self, _col, cell, model, it, _data) -> None:
+        name = model.get_value(it, _C_NAME) or ""
+        q = self._search_query
+        if q and q in name.lower():
+            idx = name.lower().find(q)
+            pre = GLib.markup_escape_text(name[:idx])
+            mid = GLib.markup_escape_text(name[idx : idx + len(q)])
+            post = GLib.markup_escape_text(name[idx + len(q) :])
+            cell.set_property("markup", f"{pre}<b><u>{mid}</u></b>{post}")
+        else:
+            cell.set_property("markup", GLib.markup_escape_text(name))
 
     def _star_cell_data(self, _col, cell, model, it, _data) -> None:
         kind = model.get_value(it, _C_TYPE)
@@ -423,17 +507,15 @@ class CodexSidebar(Gtk.Box):
     # ── Tree events ───────────────────────────────────────────────────────────
 
     def _on_row_activated(self, _tree, path, _col) -> None:
-        it = self._store.get_iter(path)
-        kind = self._store.get_value(it, _C_TYPE)
-        item = self._store.get_value(it, _C_ITEM)
+        it = self._filter.get_iter(path)
+        kind = self._filter.get_value(it, _C_TYPE)
+        item = self._filter.get_value(it, _C_ITEM)
         if kind == "document":
             self.emit("document-selected", item)
         else:
-            # Single-click on book/chapter → open context menu at the row
             self._show_context_menu_at_path(path, kind, item)
 
     def _on_left_click(self, gesture, _n, x, y) -> None:
-        # GTK4 PyGObject returns (path, col, cx, cy) — path is None when not found
         result = self._tree.get_path_at_pos(int(x), int(y))
         if not result or result[0] is None:
             return
@@ -441,12 +523,12 @@ class CodexSidebar(Gtk.Box):
         if col is not self._star_col:
             return
         gesture.set_state(Gtk.EventSequenceState.CLAIMED)
-        it = self._store.get_iter(path)
-        if self._store.get_value(it, _C_TYPE) != "document":
+        it = self._filter.get_iter(path)
+        if self._filter.get_value(it, _C_TYPE) != "document":
             return
-        doc = self._store.get_value(it, _C_ITEM)
+        doc = self._filter.get_value(it, _C_ITEM)
         self._db.toggle_favorite(doc)
-        self._store.row_changed(path, it)
+        self._filter.refilter()
         self._load_favorites()
 
     def _on_right_click(self, _gesture, _n, x, y) -> None:
@@ -455,9 +537,9 @@ class CodexSidebar(Gtk.Box):
             return
         path = result[0]
         self._tree.get_selection().select_path(path)
-        it = self._store.get_iter(path)
-        kind = self._store.get_value(it, _C_TYPE)
-        item = self._store.get_value(it, _C_ITEM)
+        it = self._filter.get_iter(path)
+        kind = self._filter.get_value(it, _C_TYPE)
+        item = self._filter.get_value(it, _C_ITEM)
         self._show_context_menu(x, y, kind, item)
 
     def _on_section_row_activated(self, _list, row: Gtk.ListBoxRow) -> None:
@@ -466,9 +548,7 @@ class CodexSidebar(Gtk.Box):
     # ── Context menu ──────────────────────────────────────────────────────────
 
     def _show_context_menu_at_path(self, path, kind: str, item) -> None:
-        """Position context menu below the activated row."""
         area = self._tree.get_cell_area(path, self._tree.get_column(0))
-        # get_cell_area returns widget-relative coords; use center-x and bottom-y
         self._show_context_menu(area.x + area.width * 0.25, area.y + area.height, kind, item)
 
     def _show_context_menu(self, x: float, y: float, kind: str, item) -> None:
@@ -551,9 +631,6 @@ class CodexSidebar(Gtk.Box):
     def _show_create_dialog(self, kind: str, parent_item) -> None:
         heading, placeholder = _LABELS[kind]
 
-        # Gtk.Entry with activates_default=True forwards Enter directly to the
-        # dialog's default response, avoiding the double-click issue caused by
-        # Adw.EntryRow inside a GtkListBox stealing the first pointer event.
         entry = Gtk.Entry(
             placeholder_text=placeholder,
             activates_default=True,
@@ -619,7 +696,7 @@ class CodexSidebar(Gtk.Box):
             margin_top=8,
             margin_bottom=8,
         )
-        entry.set_position(-1)  # cursor at end
+        entry.set_position(-1)
 
         dialog = Adw.AlertDialog(heading="Renombrar")
         dialog.set_extra_child(entry)
@@ -658,9 +735,27 @@ class CodexSidebar(Gtk.Box):
     # ── Delete confirm ────────────────────────────────────────────────────────
 
     def _show_delete_confirm(self, kind: str, item) -> None:
-        kind_es = {"book": "libro", "chapter": "capítulo", "document": "documento"}[
-            kind
-        ]
+        # Validate: must be empty before deleting
+        if kind == "book":
+            chapters = self._db.get_chapters(item.id)
+            if chapters:
+                n = len(chapters)
+                self._show_error(
+                    f'El libro "{item.name}" contiene {n} capítulo{"s" if n > 1 else ""}.\n'
+                    "Elimina primero todos los capítulos y documentos que contiene."
+                )
+                return
+        elif kind == "chapter":
+            docs = self._db.get_documents(item.id)
+            if docs:
+                n = len(docs)
+                self._show_error(
+                    f'El capítulo "{item.name}" contiene {n} documento{"s" if n > 1 else ""}.\n'
+                    "Elimina primero todos los documentos que contiene."
+                )
+                return
+
+        kind_es = {"book": "libro", "chapter": "capítulo", "document": "documento"}[kind]
         dialog = Adw.AlertDialog(
             heading=f"¿Eliminar {kind_es}?",
             body=(

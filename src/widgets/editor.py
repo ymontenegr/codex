@@ -233,6 +233,26 @@ class CodexEditorWidget(Gtk.Box):
     def insert_code(self) -> None:
         self._js("window._editor && window._editor.insertCode();")
 
+    # ── Find in document (called by toolbar) ─────────────────────────────────
+
+    def find_text(self, query: str) -> None:
+        """Highlight all occurrences of *query* in the WebView."""
+        fc = self._wv.get_find_controller()
+        if not query:
+            fc.search_finish()
+            return
+        fc.search(
+            query,
+            WebKit.FindOptions.CASE_INSENSITIVE | WebKit.FindOptions.WRAP_AROUND,
+            500,
+        )
+
+    def find_next(self) -> None:
+        self._wv.get_find_controller().search_next()
+
+    def find_prev(self) -> None:
+        self._wv.get_find_controller().search_previous()
+
     def trigger_crossref(self) -> None:
         """Open the cross-reference picker from the toolbar button.
 

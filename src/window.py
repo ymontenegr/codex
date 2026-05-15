@@ -89,8 +89,8 @@ class CodexWindow(Adw.ApplicationWindow):
         self._content_toolbar_view = Adw.ToolbarView()
 
         self._content_header = Adw.HeaderBar()
-        self._doc_title_label = Gtk.Label(label="Codex", css_classes=["heading"])
-        self._content_header.set_title_widget(self._doc_title_label)
+        self._win_title = Adw.WindowTitle(title="Codex", subtitle="v1.4.0")
+        self._content_header.set_title_widget(self._win_title)
 
         # Export button
         self._export_btn = Gtk.Button(
@@ -382,7 +382,8 @@ class CodexWindow(Adw.ApplicationWindow):
         self._current_doc = doc
         self._db.record_open(doc)
         self._editor.load_document(doc)
-        self._doc_title_label.set_label(doc.name)
+        self._win_title.set_title(doc.name)
+        self._win_title.set_subtitle("Codex")
         self._footer.set_label("")
         self._content_stack.set_visible_child_name("editor")
         self._backlinks.update(doc, self._db)
