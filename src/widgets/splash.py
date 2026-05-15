@@ -5,17 +5,23 @@ import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 
-from gi.repository import Adw, GLib, Gtk
+from gi.repository import Adw, Gtk
 
 
-class SplashScreen(Gtk.Window):
-    """Startup splash: shows icon, name and developer for 2 seconds."""
+class SplashScreen(Adw.Window):
+    """Startup splash: shows icon, name and developer.
 
-    def __init__(self, application):
+    Must be presented as a transient modal over the main window so the
+    compositor centres it on screen (GTK4/Wayland has no direct positioning).
+    """
+
+    def __init__(self, application, transient_for: Gtk.Window):
         super().__init__(application=application)
+        self.set_transient_for(transient_for)
+        self.set_modal(True)
         self.set_decorated(False)
         self.set_resizable(False)
-        self.set_default_size(340, 260)
+        self.set_default_size(340, 280)
 
         box = Gtk.Box(
             orientation=Gtk.Orientation.VERTICAL,
@@ -52,9 +58,4 @@ class SplashScreen(Gtk.Window):
             )
         )
 
-        self.set_child(box)
-
-    def show_then(self, delay_ms: int, callback) -> None:
-        """Present the splash and call *callback* after *delay_ms* milliseconds."""
-        self.present()
-        GLib.timeout_add(delay_ms, callback)
+        self.set_content(box)

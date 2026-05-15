@@ -65,18 +65,20 @@ class CodexApplication(Adw.Application):
             win.present()
             return
 
-        # First launch: show splash, then open the main window
-        splash = SplashScreen(application=self)
-        splash.show_then(2000, self._launch_main_window)
-
-    def _launch_main_window(self) -> bool:
+        # Open main window maximized first — compositor needs a parent to
+        # centre the transient splash correctly on Wayland
         win = CodexWindow(application=self)
         win.set_icon_name(APP_ID)
+        win.maximize()
         win.present()
-        # Close splash (it is the only other window registered with the app)
-        for w in self.get_windows():
-            if isinstance(w, SplashScreen):
-                w.close()
+
+        # Splash is modal+transient: compositor centres it over the main window
+        splash = SplashScreen(application=self, transient_for=win)
+        splash.present()
+        GLib.timeout_add(2000, self._close_splash, splash)
+
+    def _close_splash(self, splash: SplashScreen) -> bool:
+        splash.close()
         return GLib.SOURCE_REMOVE
 
     # ── Action handlers ───────────────────────────────────────────────────────
