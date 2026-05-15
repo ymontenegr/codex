@@ -1,0 +1,62 @@
+{
+  "app-id": "io.github.ymontenegr.Codex",
+  "runtime": "org.gnome.Platform",
+  "runtime-version": "46",
+  "sdk": "org.gnome.Sdk",
+  "sdk-extensions": ["org.freedesktop.Sdk.Extension.rust-stable"],
+  "command": "codex",
+  "finish-args": [
+    "--share=ipc",
+    "--socket=fallback-x11",
+    "--socket=wayland",
+    "--filesystem=home",
+    "--env=PYTHONPATH=/app/lib/python3.12/site-packages"
+  ],
+  "cleanup": [
+    "/include",
+    "/lib/pkgconfig",
+    "/share/pkgconfig",
+    "*.la",
+    "*.a"
+  ],
+  "modules": [
+    {
+      "name": "python3-pypandoc",
+      "buildsystem": "simple",
+      "build-commands": [
+        "pip3 install --no-index --find-links=\"file://${PWD}\" --prefix=/app pypandoc"
+      ],
+      "sources": [
+        {
+          "type": "file",
+          "url": "https://files.pythonhosted.org/packages/pypandoc-1.13-py3-none-any.whl",
+          "sha256": "TO_BE_FILLED_WITH_ACTUAL_SHA256"
+        }
+      ]
+    },
+    {
+      "name": "python3-python-dateutil",
+      "buildsystem": "simple",
+      "build-commands": [
+        "pip3 install --no-index --find-links=\"file://${PWD}\" --prefix=/app python-dateutil"
+      ],
+      "sources": [
+        {
+          "type": "file",
+          "url": "https://files.pythonhosted.org/packages/python_dateutil-2.9.0.post0-py2.py3-none-any.whl",
+          "sha256": "TO_BE_FILLED_WITH_ACTUAL_SHA256"
+        }
+      ]
+    },
+    {
+      "name": "codex",
+      "buildsystem": "meson",
+      "sources": [
+        {
+          "type": "dir",
+          "path": "."
+        }
+      ]
+    }
+  ]
+}

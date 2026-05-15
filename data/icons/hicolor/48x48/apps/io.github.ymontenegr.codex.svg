@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+
+  <!-- Fondo redondeado carbón -->
+  <rect width="512" height="512" rx="112" fill="#1C1917"/>
+
+  <!-- Sombra interior sutil para dar profundidad -->
+  <rect width="512" height="512" rx="112" fill="#000000" opacity="0.15"/>
+
+  <!-- Página izquierda -->
+  <rect x="88" y="136" width="148" height="196" rx="10" fill="#292524" stroke="#44403C" stroke-width="2"/>
+
+  <!-- Página derecha -->
+  <rect x="276" y="136" width="148" height="196" rx="10" fill="#292524" stroke="#44403C" stroke-width="2"/>
+
+  <!-- Lomo central (ámbar) -->
+  <rect x="234" y="124" width="44" height="220" rx="10" fill="#F59E0B"/>
+  <!-- Detalle lomo: línea central -->
+  <line x1="256" y1="136" x2="256" y2="332" stroke="#FCD34D" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+
+  <!-- Líneas de texto — página izquierda -->
+  <line x1="110" y1="192" x2="216" y2="192" stroke="#F59E0B" stroke-width="5" stroke-linecap="round"/>
+  <line x1="110" y1="218" x2="216" y2="218" stroke="#78716C" stroke-width="3.5" stroke-linecap="round" opacity="0.6"/>
+  <line x1="110" y1="240" x2="200" y2="240" stroke="#78716C" stroke-width="3.5" stroke-linecap="round" opacity="0.6"/>
+  <line x1="110" y1="262" x2="216" y2="262" stroke="#78716C" stroke-width="3.5" stroke-linecap="round" opacity="0.6"/>
+  <line x1="110" y1="284" x2="186" y2="284" stroke="#78716C" stroke-width="3.5" stroke-linecap="round" opacity="0.6"/>
+
+  <!-- Líneas de texto — página derecha -->
+  <line x1="296" y1="192" x2="402" y2="192" stroke="#F59E0B" stroke-width="5" stroke-linecap="round"/>
+  <line x1="296" y1="218" x2="402" y2="218" stroke="#78716C" stroke-width="3.5" stroke-linecap="round" opacity="0.6"/>
+  <line x1="296" y1="240" x2="380" y2="240" stroke="#78716C" stroke-width="3.5" stroke-linecap="round" opacity="0.6"/>
+  <line x1="296" y1="262" x2="402" y2="262" stroke="#78716C" stroke-width="3.5" stroke-linecap="round" opacity="0.6"/>
+  <line x1="296" y1="284" x2="368" y2="284" stroke="#78716C" stroke-width="3.5" stroke-linecap="round" opacity="0.6"/>
+
+  <!-- Texto CODEX en la parte inferior -->
+  <text x="256" y="392"
+        text-anchor="middle"
+        font-family="Georgia, 'Times New Roman', serif"
+        font-size="48"
+        font-weight="700"
+        fill="#F59E0B"
+        letter-spacing="10">CODEX</text>
+
+  <!-- Línea decorativa bajo el texto -->
+  <line x1="148" y1="406" x2="364" y2="406" stroke="#F59E0B" stroke-width="1.5" stroke-linecap="round" opacity="0.4"/>
+
+</svg>

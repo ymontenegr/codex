@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.ymontenegr.Codex</id>
+
+  <name>Codex</name>
+  <name xml:lang="es">Codex</name>
+
+  <summary>Structured Markdown document editor</summary>
+  <summary xml:lang="es">Editor de documentos Markdown estructurado</summary>
+
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+
+  <description>
+    <p>
+      Codex is a Markdown document editor organised around a three-level hierarchy:
+      Book → Chapter → Document. It keeps your files as plain .md files on disk while
+      indexing them in SQLite for fast full-text search.
+    </p>
+    <p xml:lang="es">
+      Codex es un editor de documentos Markdown organizado en una jerarquía de tres
+      niveles: Libro → Capítulo → Documento. Guarda los archivos como .md en disco y
+      los indexa en SQLite para búsqueda de texto completo.
+    </p>
+    <p>Key features:</p>
+    <ul>
+      <li>Book → Chapter → Document hierarchy with full CRUD</li>
+      <li>WYSIWYG Markdown editor with live preview (bold, italic, headings, code, lists)</li>
+      <li>Cross-references in [[wiki-link]] syntax with clickable navigation</li>
+      <li>Backlinks panel showing every document that references the current one</li>
+      <li>Full-text search across all documents (SQLite FTS5)</li>
+      <li>Favourites and recently-opened document sections</li>
+      <li>Tags with sidebar grouping</li>
+      <li>Export to Markdown, plain text and PDF</li>
+      <li>Document templates (meeting notes, article, analysis, README)</li>
+      <li>Focus writing mode — hides all chrome, centres editor at 720 px</li>
+      <li>Interactive document graph view (force-directed layout with Cairo)</li>
+      <li>Word count and estimated reading time in the editor footer</li>
+      <li>Light / dark / system theme, configurable editor font and sidebar width</li>
+    </ul>
+    <p xml:lang="es">Características principales:</p>
+    <ul xml:lang="es">
+      <li>Jerarquía Libro → Capítulo → Documento con CRUD completo</li>
+      <li>Editor Markdown WYSIWYG (negrita, cursiva, encabezados, código, listas)</li>
+      <li>Referencias cruzadas con sintaxis [[wiki-link]] navegables</li>
+      <li>Panel de backlinks que muestra qué documentos apuntan al actual</li>
+      <li>Búsqueda de texto completo en todos los documentos (SQLite FTS5)</li>
+      <li>Secciones de favoritos y documentos recientes</li>
+      <li>Etiquetas con agrupación en el panel lateral</li>
+      <li>Exportación a Markdown, texto plano y PDF</li>
+      <li>Plantillas de documento (acta de reunión, artículo, análisis, README)</li>
+      <li>Modo escritura enfocada — oculta la interfaz y centra el editor a 720 px</li>
+      <li>Vista de grafo interactiva (layout force-directed con Cairo)</li>
+      <li>Contador de palabras y tiempo de lectura estimado</li>
+      <li>Tema claro / oscuro / sistema, fuente del editor y ancho del panel configurables</li>
+    </ul>
+  </description>
+
+  <launchable type="desktop-id">io.github.ymontenegr.Codex.desktop</launchable>
+
+  <url type="homepage">https://github.com/ymontenegr/codex</url>
+  <url type="bugtracker">https://github.com/ymontenegr/codex/issues</url>
+
+  <developer id="io.github.ymontenegr">
+    <name>ymontenegr</name>
+  </developer>
+
+  <content_rating type="oars-1.1"/>
+
+  <releases>
+    <release version="0.1.0" date="2026-05-14">
+      <description>
+        <p>First public release of Codex.</p>
+        <p xml:lang="es">Primera versión pública de Codex.</p>
+        <ul>
+          <li>Full Book → Chapter → Document hierarchy</li>
+          <li>WYSIWYG Markdown editor with WebKit</li>
+          <li>Cross-references, backlinks, full-text search</li>
+          <li>Tags, favourites, history, templates</li>
+          <li>Export to MD / TXT / PDF</li>
+          <li>Focus writing mode and document graph view</li>
+          <li>Preferences window with theme, font and layout settings</li>
+        </ul>
+      </description>
+    </release>
+  </releases>
+
+  <requires>
+    <display_length compare="ge">360</display_length>
+  </requires>
+
+  <recommends>
+    <display_length compare="ge">800</display_length>
+  </recommends>
+
+  <supports>
+    <internet>offline-only</internet>
+  </supports>
+</component>

@@ -1,0 +1,16 @@
+[Desktop Entry]
+Name=Codex
+Name[es]=Codex
+GenericName=Document Editor
+GenericName[es]=Editor de Documentos
+Comment=Structured Markdown document editor with cross-references and graph view
+Comment[es]=Editor de documentos Markdown estructurado con referencias cruzadas y vista de grafo
+Exec=codex
+Icon=io.github.ymontenegr.Codex
+Terminal=false
+Type=Application
+Categories=Office;TextEditor;
+Keywords=markdown;editor;notes;documents;writing;wiki;knowledge;
+StartupNotify=true
+StartupWMClass=codex
+X-GNOME-UsesNotifications=false

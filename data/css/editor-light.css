@@ -1,0 +1,16 @@
+/* Codex Editor — Light Theme
+   Colores semánticos de Adwaita (§2 design-guidelines). */
+
+:root {
+  --text:         #1a1a1a;
+  --bg:           #ffffff;
+  --accent:       #1c71d8;
+  --code-fg:      #b5390c;
+  --code-bg:      #f5f5f5;
+  --link:         #1c71d8;
+  --border:       #e0e0e0;
+  --placeholder:  #aaaaaa;
+  --selection:    rgba(28, 113, 216, 0.20);
+  --crossref:     #2d7d46;
+  --crossref-bg:  rgba(45, 125, 70, 0.08);
+}
