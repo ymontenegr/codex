@@ -141,6 +141,9 @@ codex/
 ## Historial de versiones
 
 ### v1.4.0
+**Corrección de errores**
+- Texto invisible en la opción "Eliminar" del menú contextual dentro del `Popover` — la combinación de clases CSS `flat` + `destructive-action` en `Gtk.Button` hace el texto transparente en Libadwaita; corregido aplicando la clase `error` directamente al `Gtk.Label`
+
 **Nuevas funcionalidades**
 - Ícono de la aplicación visible en la cabecera del sidebar, al lado del título "Biblioteca"
 - Título de la ventana principal muestra nombre de la app y versión (`Adw.WindowTitle`)
