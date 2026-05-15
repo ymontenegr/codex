@@ -551,12 +551,20 @@ class CodexSidebar(Gtk.Box):
     def _show_create_dialog(self, kind: str, parent_item) -> None:
         heading, placeholder = _LABELS[kind]
 
-        entry = Adw.EntryRow(title=placeholder)
-        group = Adw.PreferencesGroup()
-        group.add(entry)
+        # Gtk.Entry with activates_default=True forwards Enter directly to the
+        # dialog's default response, avoiding the double-click issue caused by
+        # Adw.EntryRow inside a GtkListBox stealing the first pointer event.
+        entry = Gtk.Entry(
+            placeholder_text=placeholder,
+            activates_default=True,
+            margin_start=12,
+            margin_end=12,
+            margin_top=8,
+            margin_bottom=8,
+        )
 
         dialog = Adw.AlertDialog(heading=heading)
-        dialog.set_extra_child(group)
+        dialog.set_extra_child(entry)
         dialog.add_response("cancel", "Cancelar")
         dialog.add_response("create", "Crear")
         dialog.set_response_appearance("create", Adw.ResponseAppearance.SUGGESTED)
@@ -603,13 +611,18 @@ class CodexSidebar(Gtk.Box):
     # ── Rename dialog ─────────────────────────────────────────────────────────
 
     def _show_rename_dialog(self, kind: str, item) -> None:
-        entry = Adw.EntryRow(title="Nuevo nombre")
-        entry.set_text(item.name)
-        group = Adw.PreferencesGroup()
-        group.add(entry)
+        entry = Gtk.Entry(
+            text=item.name,
+            activates_default=True,
+            margin_start=12,
+            margin_end=12,
+            margin_top=8,
+            margin_bottom=8,
+        )
+        entry.set_position(-1)  # cursor at end
 
         dialog = Adw.AlertDialog(heading="Renombrar")
-        dialog.set_extra_child(group)
+        dialog.set_extra_child(entry)
         dialog.add_response("cancel", "Cancelar")
         dialog.add_response("rename", "Renombrar")
         dialog.set_response_appearance("rename", Adw.ResponseAppearance.SUGGESTED)
