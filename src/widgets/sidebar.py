@@ -165,6 +165,10 @@ class CodexSidebar(Gtk.Box):
 
         self._tree.connect("row-activated", self._on_row_activated)
 
+        sel = self._tree.get_selection()
+        sel.set_mode(Gtk.SelectionMode.SINGLE)
+        sel.connect("changed", self._on_selection_changed)
+
         rclick = Gtk.GestureClick(button=3)
         rclick.connect("pressed", self._on_right_click)
         self._tree.add_controller(rclick)
@@ -503,27 +507,37 @@ class CodexSidebar(Gtk.Box):
     # ── Tree events ───────────────────────────────────────────────────────────
 
     def _on_row_activated(self, _tree, path, col) -> None:
-        it = self._filter.get_iter(path)
-        kind = self._filter.get_value(it, _C_TYPE)
-        item = self._filter.get_value(it, _C_ITEM)
-        if col is self._star_col:
-            if kind == "document":
-                self._db.toggle_favorite(item)
-                self._filter.refilter()
-                self._load_favorites()
+        # Only handles star-column favorite toggle; document opening is via selection.changed
+        if col is not self._star_col:
             return
-        if kind == "document":
-            self.emit("document-selected", item)
-        else:
-            self._show_context_menu_at_path(path, kind, item)
+        it = self._filter.get_iter(path)
+        if it is None:
+            return
+        if self._filter.get_value(it, _C_TYPE) != "document":
+            return
+        doc = self._filter.get_value(it, _C_ITEM)
+        self._db.toggle_favorite(doc)
+        self._filter.refilter()
+        self._load_favorites()
+
+    def _on_selection_changed(self, selection) -> None:
+        model, it = selection.get_selected()
+        if it is None:
+            return
+        kind = model.get_value(it, _C_TYPE)
+        if kind != "document":
+            return
+        item = model.get_value(it, _C_ITEM)
+        self.emit("document-selected", item)
 
     def _on_right_click(self, _gesture, _n, x, y) -> None:
         result = self._tree.get_path_at_pos(int(x), int(y))
         if not result or result[0] is None:
             return
         path = result[0]
-        self._tree.get_selection().select_path(path)
         it = self._filter.get_iter(path)
+        if it is None:
+            return
         kind = self._filter.get_value(it, _C_TYPE)
         item = self._filter.get_value(it, _C_ITEM)
         self._show_context_menu(x, y, kind, item)
