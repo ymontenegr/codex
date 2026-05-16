@@ -53,6 +53,34 @@ class CodexWindow(Adw.ApplicationWindow):
             "  background-color: @headerbar_bg_color;"
             "  box-shadow: none;"
             "}"
+
+            # Toolbar: distinct tinted background + coloured icon groups
+            ".codex-toolbar {"
+            "  background-color: @sidebar_bg_color;"
+            "  border-bottom: 1px solid alpha(@borders, 0.6);"
+            "  padding: 1px 4px;"
+            "}"
+            ".codex-toolbar button.flat {"
+            "  border-radius: 6px;"
+            "  transition: background 150ms ease;"
+            "}"
+            ".codex-toolbar button.flat:hover {"
+            "  background-color: alpha(@accent_bg_color, 0.12);"
+            "}"
+            # Bold → blue
+            ".codex-toolbar button.btn-bold image { color: #3584e4; }"
+            # Italic → purple
+            ".codex-toolbar button.btn-italic image { color: #9141ac; }"
+            # Code inline → green
+            ".codex-toolbar button.btn-code label { color: #2ec27e; font-family: monospace; font-weight: bold; }"
+            # Headings → amber/orange, bold label
+            ".codex-toolbar button.btn-heading label { color: #e66100; font-weight: bold; }"
+            # Lists → teal
+            ".codex-toolbar button.btn-list image { color: #1c9cc4; }"
+            # Link → blue
+            ".codex-toolbar button.btn-link image { color: #2980b9; }"
+            # Crossref → violet
+            ".codex-toolbar button.btn-crossref label { color: #813d9c; font-weight: bold; }"
         )
         Gtk.StyleContext.add_provider_for_display(
             Gdk.Display.get_default(), _css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
@@ -105,21 +133,14 @@ class CodexWindow(Adw.ApplicationWindow):
         self._content_toolbar_view.set_top_bar_style(Adw.ToolbarStyle.FLAT)
 
         self._content_header = Adw.HeaderBar()
-        self._win_title = Adw.WindowTitle(title="Codex", subtitle="v1.5.0")
+        # In NavigationSplitView, sidebar hides both start+end controls → content
+        # header must show ONLY end controls (close button). Without this, the
+        # header reserves symmetric space for start controls too, which shifts the
+        # title right and can push the close button off-screen when the toolbar
+        # minimum width increases (e.g. when TagBar becomes visible).
+        self._content_header.set_show_start_title_buttons(False)
+        self._win_title = Adw.WindowTitle(title="Codex", subtitle="v1.6.0")
         self._content_header.set_title_widget(self._win_title)
-
-        # Export button
-        self._export_btn = Gtk.Button(
-            icon_name="document-save-as-symbolic",
-            tooltip_text="Exportar (Ctrl+E)",
-            css_classes=["flat"],
-            sensitive=False,
-        )
-        self._export_btn.update_property(
-            [Gtk.AccessibleProperty.LABEL], ["Exportar documento"]
-        )
-        self._export_btn.connect("clicked", lambda _: self.show_export_dialog())
-        self._content_header.pack_end(self._export_btn)
 
         # Graph view button
         graph_btn = Gtk.Button(
@@ -147,6 +168,7 @@ class CodexWindow(Adw.ApplicationWindow):
 
         # App menu button (About, etc.)
         app_menu = Gio.Menu()
+        app_menu.append("Exportar documento…", "win.export-document")
         app_menu.append("Acerca de Codex", "app.about")
         menu_btn = Gtk.MenuButton(
             icon_name="open-menu-symbolic",
@@ -180,8 +202,8 @@ class CodexWindow(Adw.ApplicationWindow):
 
         # Find-in-document entry
         self._find_entry = Gtk.SearchEntry(
-            placeholder_text="Buscar en documento…",
-            width_chars=20,
+            placeholder_text="Buscar…",
+            width_chars=10,
         )
         self._find_entry.connect(
             "search-changed",
@@ -289,7 +311,7 @@ class CodexWindow(Adw.ApplicationWindow):
         }.get(self._settings.get("theme"), Adw.ColorScheme.DEFAULT)
         Adw.StyleManager.get_default().set_color_scheme(scheme)
 
-        self._backlinks.set_visible(self._settings.get("show_backlinks", True))
+        self._backlinks.set_visible(self._settings.get("show_backlinks", False))
 
     # ── Key handler ───────────────────────────────────────────────────────────
 
@@ -334,7 +356,7 @@ class CodexWindow(Adw.ApplicationWindow):
 
         self._content_header.set_visible(True)
         self._toolbar.set_visible(True)
-        self._backlinks.set_visible(self._settings.get("show_backlinks", True))
+        self._backlinks.set_visible(self._settings.get("show_backlinks", False))
         self._footer.set_visible(True)
 
         self._focus_hint.set_visible(False)
@@ -444,7 +466,6 @@ class CodexWindow(Adw.ApplicationWindow):
         self._backlinks.update(doc, self._db)
         self._tag_bar.load(doc, self._db)
         self._tag_bar.set_visible(True)
-        self._export_btn.set_sensitive(True)
         self._sidebar.refresh()
 
     def _on_navigate_document(self, _editor, name: str) -> None:

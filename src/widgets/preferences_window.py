@@ -103,7 +103,7 @@ class PreferencesWindow(Adw.PreferencesWindow):
             title="Referencias entrantes",
             subtitle="Mostrar documentos que enlazan al documento actual",
         )
-        self._backlinks_row.set_active(self._settings.get("show_backlinks", True))
+        self._backlinks_row.set_active(self._settings.get("show_backlinks", False))
         self._backlinks_row.connect("notify::active", self._on_backlinks_changed)
         content_group.add(self._backlinks_row)
 

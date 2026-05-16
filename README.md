@@ -140,6 +140,22 @@ codex/
 
 ## Historial de versiones
 
+### v1.6.0
+**Nuevas funcionalidades**
+- Barra de herramientas con controles de tipografía integrados: selector de familia de fuente (12 opciones), spinner de tamaño de texto y paleta de color de texto (12 colores) directamente en la toolbar
+- Fuente por defecto de los documentos cambiada a Ubuntu
+- Secciones "Favoritos" y "Recientes" en el sidebar colapsables, contraídas por defecto y fijas en la parte inferior del panel
+- Iconos de la toolbar con color según función: negrita (azul), cursiva (morado), código (verde), encabezados (naranja), listas (teal), enlace/crossref (violeta)
+- Fondo de la toolbar visualmente diferenciado del lienzo del editor
+- Opción "Exportar documento…" movida al menú hamburguesa (≡); el atajo Ctrl+E sigue disponible
+- Panel de referencias entrantes oculto por defecto; se activa desde Preferencias → Editor
+
+**Corrección de errores**
+- La sección "Favoritos" aparecía bajo el árbol de documentos en lugar de la parte inferior del sidebar — movida fuera del `ScrolledWindow`, anclada sobre "Recientes"
+- El botón de cerrar (×) desaparecía al abrir un documento — reducido el ancho mínimo de la toolbar (font dropdown 80 px, campo de búsqueda 10 chars, entrada de etiquetas 6 chars) y eliminado el botón de exportar del header
+- La ventana sobrepasaba el ancho del monitor cuando el TagBar se hacía visible — resuelto con las mismas reducciones de ancho mínimo
+- El botón de maximizar no respondía — consecuencia del desbordamiento de ventana, resuelto junto al punto anterior
+
 ### v1.5.0
 **Nuevas funcionalidades**
 - Toggle en preferencias (página Editor → Contenido del editor) para habilitar o deshabilitar la sección "Referencias entrantes" sin reiniciar la aplicación

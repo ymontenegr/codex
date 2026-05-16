@@ -173,22 +173,22 @@ class CodexSidebar(Gtk.Box):
 
         outer.append(self._tree)
 
-        # ── Favorites section ─────────────────────────────────────────────────
+        # ── Favorites section (collapsible) ───────────────────────────────────
         self._fav_section_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self._fav_section_box.append(Gtk.Separator())
 
-        fav_hdr = Gtk.Box(
+        fav_inner = Gtk.Box(
             orientation=Gtk.Orientation.HORIZONTAL,
             spacing=6,
             margin_start=12,
             margin_end=12,
-            margin_top=9,
+            margin_top=6,
             margin_bottom=6,
         )
         fav_icon = Gtk.Image.new_from_icon_name("starred-symbolic")
         fav_icon.add_css_class("dim-label")
-        fav_hdr.append(fav_icon)
-        fav_hdr.append(
+        fav_inner.append(fav_icon)
+        fav_inner.append(
             Gtk.Label(
                 label="Favoritos",
                 css_classes=["heading"],
@@ -196,7 +196,14 @@ class CodexSidebar(Gtk.Box):
                 hexpand=True,
             )
         )
-        self._fav_section_box.append(fav_hdr)
+        self._fav_arrow = Gtk.Image.new_from_icon_name("go-next-symbolic")
+        self._fav_arrow.add_css_class("dim-label")
+        fav_inner.append(self._fav_arrow)
+
+        fav_toggle_btn = Gtk.Button(css_classes=["flat"], child=fav_inner)
+        fav_toggle_btn.set_hexpand(True)
+        fav_toggle_btn.connect("clicked", self._toggle_favorites)
+        self._fav_section_box.append(fav_toggle_btn)
 
         self._fav_list = Gtk.ListBox(css_classes=["boxed-list"])
         self._fav_list.set_selection_mode(Gtk.SelectionMode.SINGLE)
@@ -204,9 +211,13 @@ class CodexSidebar(Gtk.Box):
         self._fav_list.set_margin_end(12)
         self._fav_list.set_margin_bottom(9)
         self._fav_list.connect("row-activated", self._on_section_row_activated)
-        self._fav_section_box.append(self._fav_list)
 
-        outer.append(self._fav_section_box)
+        self._fav_revealer = Gtk.Revealer(
+            child=self._fav_list,
+            transition_type=Gtk.RevealerTransitionType.SLIDE_DOWN,
+            reveal_child=False,
+        )
+        self._fav_section_box.append(self._fav_revealer)
 
         # ── Tags section ──────────────────────────────────────────────────────
         self._tags_section_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
@@ -241,22 +252,25 @@ class CodexSidebar(Gtk.Box):
         scroll.set_child(outer)
         container.append(scroll)
 
-        # ── Recents section — pinned to the bottom half ───────────────────────
+        # ── Favorites section — pinned above recents ──────────────────────────
+        container.append(self._fav_section_box)
+
+        # ── Recents section — pinned to the bottom (collapsible) ─────────────
         self._rec_section_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self._rec_section_box.append(Gtk.Separator())
 
-        rec_hdr = Gtk.Box(
+        rec_inner = Gtk.Box(
             orientation=Gtk.Orientation.HORIZONTAL,
             spacing=6,
             margin_start=12,
             margin_end=12,
-            margin_top=9,
+            margin_top=6,
             margin_bottom=6,
         )
         rec_icon = Gtk.Image.new_from_icon_name("document-open-recent-symbolic")
         rec_icon.add_css_class("dim-label")
-        rec_hdr.append(rec_icon)
-        rec_hdr.append(
+        rec_inner.append(rec_icon)
+        rec_inner.append(
             Gtk.Label(
                 label="Recientes",
                 css_classes=["heading"],
@@ -264,7 +278,14 @@ class CodexSidebar(Gtk.Box):
                 hexpand=True,
             )
         )
-        self._rec_section_box.append(rec_hdr)
+        self._rec_arrow = Gtk.Image.new_from_icon_name("go-next-symbolic")
+        self._rec_arrow.add_css_class("dim-label")
+        rec_inner.append(self._rec_arrow)
+
+        rec_toggle_btn = Gtk.Button(css_classes=["flat"], child=rec_inner)
+        rec_toggle_btn.set_hexpand(True)
+        rec_toggle_btn.connect("clicked", self._toggle_recents)
+        self._rec_section_box.append(rec_toggle_btn)
 
         self._rec_list = Gtk.ListBox(css_classes=["boxed-list"])
         self._rec_list.set_selection_mode(Gtk.SelectionMode.SINGLE)
@@ -272,7 +293,13 @@ class CodexSidebar(Gtk.Box):
         self._rec_list.set_margin_end(12)
         self._rec_list.set_margin_bottom(9)
         self._rec_list.connect("row-activated", self._on_section_row_activated)
-        self._rec_section_box.append(self._rec_list)
+
+        self._rec_revealer = Gtk.Revealer(
+            child=self._rec_list,
+            transition_type=Gtk.RevealerTransitionType.SLIDE_DOWN,
+            reveal_child=False,
+        )
+        self._rec_section_box.append(self._rec_revealer)
 
         container.append(self._rec_section_box)
         return container
@@ -340,6 +367,7 @@ class CodexSidebar(Gtk.Box):
             self._fav_list.append(row)
 
         self._fav_section_box.set_visible(bool(favorites))
+        # Revealer state is preserved across reloads (user's expand/collapse choice)
 
     def _load_recents(self) -> None:
         while (row := self._rec_list.get_row_at_index(0)) is not None:
@@ -361,6 +389,7 @@ class CodexSidebar(Gtk.Box):
             self._rec_list.append(row)
 
         self._rec_section_box.set_visible(bool(recents))
+        # Revealer state is preserved across reloads (user's expand/collapse choice)
 
     def _load_tags(self) -> None:
         while (ch := self._tags_container.get_last_child()) is not None:
@@ -509,12 +538,18 @@ class CodexSidebar(Gtk.Box):
         if not result or result[0] is None:
             return
         path, col = result[0], result[1]
+
+        # col is None when clicking the expander arrow → let TreeView expand/collapse
+        if col is None:
+            return
+
         it = self._filter.get_iter(path)
         if it is None:
             return
         kind = self._filter.get_value(it, _C_TYPE)
         item = self._filter.get_value(it, _C_ITEM)
 
+        # Star toggle
         if col is self._star_col and kind == "document":
             gesture.set_state(Gtk.EventSequenceState.CLAIMED)
             self._db.toggle_favorite(item)
@@ -522,10 +557,14 @@ class CodexSidebar(Gtk.Box):
             self._load_favorites()
             return
 
+        gesture.set_state(Gtk.EventSequenceState.CLAIMED)
+
         if kind == "document":
-            gesture.set_state(Gtk.EventSequenceState.CLAIMED)
             self._tree.get_selection().select_path(path)
             self.emit("document-selected", item)
+        else:
+            # Book/chapter: show context menu (same as original row-activated behavior)
+            self._show_context_menu(x, y, kind, item)
 
     def _on_right_click(self, _gesture, _n, x, y) -> None:
         result = self._tree.get_path_at_pos(int(x), int(y))
@@ -538,6 +577,20 @@ class CodexSidebar(Gtk.Box):
         kind = self._filter.get_value(it, _C_TYPE)
         item = self._filter.get_value(it, _C_ITEM)
         self._show_context_menu(x, y, kind, item)
+
+    def _toggle_favorites(self, _btn) -> None:
+        expanded = self._fav_revealer.get_reveal_child()
+        self._fav_revealer.set_reveal_child(not expanded)
+        self._fav_arrow.set_from_icon_name(
+            "go-down-symbolic" if not expanded else "go-next-symbolic"
+        )
+
+    def _toggle_recents(self, _btn) -> None:
+        expanded = self._rec_revealer.get_reveal_child()
+        self._rec_revealer.set_reveal_child(not expanded)
+        self._rec_arrow.set_from_icon_name(
+            "go-down-symbolic" if not expanded else "go-next-symbolic"
+        )
 
     def _on_section_row_activated(self, _list, row: Gtk.ListBoxRow) -> None:
         self.emit("document-selected", row._doc)

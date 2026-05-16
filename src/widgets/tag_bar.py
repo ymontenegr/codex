@@ -63,7 +63,7 @@ class TagBar(Gtk.Box):
         # Compact add-tag entry
         self._entry = Gtk.Entry(
             placeholder_text="Etiqueta…",
-            width_chars=10,
+            width_chars=6,
         )
         self._entry.connect("activate", self._on_add)
         self.append(self._entry)

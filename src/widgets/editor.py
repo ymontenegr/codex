@@ -29,8 +29,7 @@ html, body {{
   height: 100%;
   background: var(--bg);
   color: var(--text);
-  /* Cantarell — fuente sistema GNOME (§3 design-guidelines) */
-  font-family: 'Cantarell', 'Noto Sans', system-ui, sans-serif;
+  font-family: 'Ubuntu', 'Cantarell', 'Noto Sans', system-ui, sans-serif;
   font-size: 15px;
   line-height: 1.7;
 }}
@@ -53,7 +52,7 @@ html, body {{
 /* Headings — coloreados con el acento del sistema (§2 design-guidelines) */
 h1, h2, h3 {{
   color: var(--accent);
-  font-family: 'Cantarell', sans-serif;
+  font-family: 'Ubuntu', 'Cantarell', sans-serif;
   line-height: 1.3;
   margin-top: 1.2em;
   margin-bottom: 0.4em;
@@ -232,6 +231,26 @@ class CodexEditorWidget(Gtk.Box):
 
     def insert_code(self) -> None:
         self._js("window._editor && window._editor.insertCode();")
+
+    def apply_font_family(self, family: str) -> None:
+        safe = family.replace("'", "").replace('"', "")
+        self._js(f"document.execCommand('fontName', false, '{safe}');")
+
+    def apply_font_size(self, size: int) -> None:
+        self._js(
+            "document.execCommand('fontSize', false, '7');"
+            "var _fonts = document.getElementsByTagName('font');"
+            "for(var _i=0;_i<_fonts.length;_i++){"
+            "  if(_fonts[_i].size=='7'){"
+            "    _fonts[_i].removeAttribute('size');"
+            f"    _fonts[_i].style.fontSize='{size}px';"
+            "  }"
+            "}"
+        )
+
+    def apply_text_color(self, color: str) -> None:
+        safe = color.replace("'", "").replace('"', "")
+        self._js(f"document.execCommand('foreColor', false, '{safe}');")
 
     # ── Find in document (called by toolbar) ─────────────────────────────────
 

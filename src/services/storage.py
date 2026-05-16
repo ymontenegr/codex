@@ -62,7 +62,10 @@ class StorageService:
         path = book.path / slug
         if path.exists():
             raise StorageError(f"Ya existe un capítulo con ese nombre: '{name}'")
-        path.mkdir()
+        try:
+            path.mkdir(parents=True, exist_ok=False)
+        except OSError as exc:
+            raise StorageError(f"No se pudo crear el capítulo: {exc}") from exc
         now = datetime.now()
         return Chapter(
             name=name, path=path, book_id=book.id, created_at=now, updated_at=now
@@ -105,7 +108,11 @@ class StorageService:
         path = chapter.path / f"{slug}.md"
         if path.exists():
             raise StorageError(f"Ya existe un documento con ese nombre: '{name}'")
-        path.write_text(f"# {name}\n\n", encoding="utf-8")
+        try:
+            chapter.path.mkdir(parents=True, exist_ok=True)
+            path.write_text(f"# {name}\n\n", encoding="utf-8")
+        except OSError as exc:
+            raise StorageError(f"No se pudo crear el documento: {exc}") from exc
         now = datetime.now()
         return Document(
             name=name, path=path, chapter_id=chapter.id, created_at=now, updated_at=now
