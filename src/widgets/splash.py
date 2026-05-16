@@ -53,7 +53,7 @@ class SplashScreen(Adw.Window):
         )
         box.append(
             Gtk.Label(
-                label="v1.4.0",
+                label="v1.5.0",
                 css_classes=["caption", "dim-label"],
             )
         )

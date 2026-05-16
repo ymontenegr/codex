@@ -16,16 +16,21 @@ if TYPE_CHECKING:
 
 class TagBar(Gtk.Box):
     """
-    Horizontal bar that shows a document's tags as removable chips,
-    plus an entry field to add new ones.
+    Compact horizontal tag strip for embedding in the editor toolbar.
 
-    Call :meth:`load` whenever a new document is opened.
+    Shows the document's tags as removable chips inline, with a short entry
+    field to add new ones.  Call :meth:`load` whenever a new document opens.
     """
 
     __gtype_name__ = "TagBar"
 
     def __init__(self, **kwargs) -> None:
-        super().__init__(orientation=Gtk.Orientation.VERTICAL, **kwargs)
+        super().__init__(
+            orientation=Gtk.Orientation.HORIZONTAL,
+            spacing=4,
+            valign=Gtk.Align.CENTER,
+            **kwargs,
+        )
         self._doc: "Document | None" = None
         self._db: "Database | None" = None
         self._build()
@@ -33,51 +38,36 @@ class TagBar(Gtk.Box):
     # ── Build ─────────────────────────────────────────────────────────────────
 
     def _build(self) -> None:
-        # Section header
-        hdr = Gtk.Box(
-            orientation=Gtk.Orientation.HORIZONTAL,
-            spacing=6,
-            margin_start=12,
-            margin_end=12,
-            margin_top=6,
-        )
+        # Small tag icon as visual anchor
         icon = Gtk.Image.new_from_icon_name("tag-symbolic")
         icon.add_css_class("dim-label")
-        lbl = Gtk.Label(
-            label="Etiquetas",
-            css_classes=["caption", "dim-label"],
-            halign=Gtk.Align.START,
-            hexpand=True,
-        )
-        hdr.append(icon)
-        hdr.append(lbl)
-        self.append(hdr)
+        icon.set_margin_start(4)
+        self.append(icon)
 
-        # Chips container (wrapping horizontal flow)
-        self._chips_box = Gtk.FlowBox()
-        self._chips_box.set_selection_mode(Gtk.SelectionMode.NONE)
-        self._chips_box.set_homogeneous(False)
-        self._chips_box.set_max_children_per_line(20)
-        self._chips_box.set_margin_start(10)
-        self._chips_box.set_margin_end(10)
-        self._chips_box.set_column_spacing(4)
-        self._chips_box.set_row_spacing(4)
-        self.append(self._chips_box)
-
-        # Add-tag entry row
-        entry_box = Gtk.Box(
+        # Chips in a horizontally scrollable strip
+        self._chips_box = Gtk.Box(
             orientation=Gtk.Orientation.HORIZONTAL,
             spacing=4,
-            margin_start=12,
-            margin_end=12,
-            margin_top=4,
-            margin_bottom=6,
+            valign=Gtk.Align.CENTER,
         )
+        chips_scroll = Gtk.ScrolledWindow(
+            hscrollbar_policy=Gtk.PolicyType.AUTOMATIC,
+            vscrollbar_policy=Gtk.PolicyType.NEVER,
+            propagate_natural_width=True,
+            valign=Gtk.Align.CENTER,
+        )
+        chips_scroll.set_max_content_width(240)
+        chips_scroll.set_child(self._chips_box)
+        self.append(chips_scroll)
+
+        # Compact add-tag entry
         self._entry = Gtk.Entry(
-            placeholder_text="Agregar etiqueta…",
-            hexpand=True,
+            placeholder_text="Etiqueta…",
+            width_chars=10,
         )
         self._entry.connect("activate", self._on_add)
+        self.append(self._entry)
+
         add_btn = Gtk.Button(
             icon_name="list-add-symbolic",
             css_classes=["flat"],
@@ -85,9 +75,7 @@ class TagBar(Gtk.Box):
         )
         add_btn.update_property([Gtk.AccessibleProperty.LABEL], ["Agregar etiqueta"])
         add_btn.connect("clicked", lambda _: self._on_add(self._entry))
-        entry_box.append(self._entry)
-        entry_box.append(add_btn)
-        self.append(entry_box)
+        self.append(add_btn)
 
     # ── Public API ────────────────────────────────────────────────────────────
 
@@ -106,7 +94,7 @@ class TagBar(Gtk.Box):
     # ── Internal ─────────────────────────────────────────────────────────────
 
     def _refresh(self) -> None:
-        while (child := self._chips_box.get_child_at_index(0)) is not None:
+        while (child := self._chips_box.get_last_child()) is not None:
             self._chips_box.remove(child)
 
         if not self._doc or not self._db:
@@ -116,16 +104,9 @@ class TagBar(Gtk.Box):
             self._chips_box.append(self._make_chip(tag))
 
     def _make_chip(self, tag: "Tag") -> Gtk.Box:
-        # Outer box styled as a pill using "linked" (two adjacent flat buttons)
-        chip = Gtk.Box(spacing=0, css_classes=["linked"])
-        chip.set_margin_top(2)
-        chip.set_margin_bottom(2)
-        chip.set_margin_start(2)
+        chip = Gtk.Box(spacing=0, css_classes=["linked"], valign=Gtk.Align.CENTER)
 
-        name_btn = Gtk.Button(
-            label=tag.name,
-            css_classes=["flat"],
-        )
+        name_btn = Gtk.Button(label=tag.name, css_classes=["flat"])
         name_btn.set_can_focus(False)
 
         del_btn = Gtk.Button(

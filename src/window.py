@@ -44,6 +44,20 @@ class CodexWindow(Adw.ApplicationWindow):
     # ── Layout ────────────────────────────────────────────────────────────────
 
     def _setup_ui(self) -> None:
+        # Force both header bars (sidebar + content) to use the same background.
+        # Without this, FLAT headers inherit pane bg: sidebar-bg on the left and
+        # window-bg (white) on the right, making them look visually different.
+        _css = Gtk.CssProvider()
+        _css.load_from_string(
+            "headerbar {"
+            "  background-color: @headerbar_bg_color;"
+            "  box-shadow: none;"
+            "}"
+        )
+        Gtk.StyleContext.add_provider_for_display(
+            Gdk.Display.get_default(), _css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+        )
+
         self._toast_overlay = Adw.ToastOverlay()
         self.set_content(self._toast_overlay)
 
@@ -91,7 +105,7 @@ class CodexWindow(Adw.ApplicationWindow):
         self._content_toolbar_view.set_top_bar_style(Adw.ToolbarStyle.FLAT)
 
         self._content_header = Adw.HeaderBar()
-        self._win_title = Adw.WindowTitle(title="Codex", subtitle="v1.4.0")
+        self._win_title = Adw.WindowTitle(title="Codex", subtitle="v1.5.0")
         self._content_header.set_title_widget(self._win_title)
 
         # Export button
@@ -145,15 +159,52 @@ class CodexWindow(Adw.ApplicationWindow):
 
         self._content_toolbar_view.add_top_bar(self._content_header)
 
+        # ── Toolbar row — must be created BEFORE _build_editor_page() ─────────
+        # _build_editor_page() calls self._toolbar.set_editor(); if toolbar
+        # doesn't exist yet, it raises AttributeError and breaks all setup.
+        self._toolbar = EditorToolbar()
+
+        # Tag section — hidden until a document is opened
+        self._toolbar.append(
+            Gtk.Separator(orientation=Gtk.Orientation.VERTICAL, margin_top=6, margin_bottom=6)
+        )
+        self._tag_bar = TagBar()
+        self._tag_bar.set_visible(False)
+        self._toolbar.append(self._tag_bar)
+
+        # Push the find bar to the far right
+        self._toolbar.append(Gtk.Box(hexpand=True))
+        self._toolbar.append(
+            Gtk.Separator(orientation=Gtk.Orientation.VERTICAL, margin_top=6, margin_bottom=6)
+        )
+
+        # Find-in-document entry
+        self._find_entry = Gtk.SearchEntry(
+            placeholder_text="Buscar en documento…",
+            width_chars=20,
+        )
+        self._find_entry.connect(
+            "search-changed",
+            lambda e: self._editor.find_text(e.get_text()),
+        )
+        self._find_entry.connect(
+            "next-match", lambda _: self._editor.find_next()
+        )
+        self._find_entry.connect(
+            "previous-match", lambda _: self._editor.find_prev()
+        )
+        self._find_entry.connect(
+            "stop-search",
+            lambda e: (e.set_text(""), self._editor.find_text("")),
+        )
+        self._toolbar.append(self._find_entry)
+
+        # ── Content stack — built after toolbar so _build_editor_page() works ─
         self._content_stack = Gtk.Stack()
         self._content_stack.set_transition_type(Gtk.StackTransitionType.CROSSFADE)
         self._content_stack.add_named(self._build_empty_page(), "empty")
         self._content_stack.add_named(self._build_editor_page(), "editor")
 
-        # EditorToolbar lives inside the content (not as a top_bar) so that
-        # it keeps its own "toolbar" CSS background and is visually distinct
-        # from both the flat header above and the editor canvas below.
-        self._toolbar = EditorToolbar()
         content_wrapper = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         content_wrapper.append(self._toolbar)
         content_wrapper.append(self._content_stack)
@@ -201,11 +252,6 @@ class CodexWindow(Adw.ApplicationWindow):
         self._backlinks.connect("document-selected", self._on_document_selected)
         box.append(self._backlinks)
 
-        # Tag bar
-        box.append(Gtk.Separator())
-        self._tag_bar = TagBar()
-        box.append(self._tag_bar)
-
         # Footer: word count + reading time
         self._footer = Gtk.Label(
             css_classes=["caption", "numeric"],
@@ -243,6 +289,8 @@ class CodexWindow(Adw.ApplicationWindow):
         }.get(self._settings.get("theme"), Adw.ColorScheme.DEFAULT)
         Adw.StyleManager.get_default().set_color_scheme(scheme)
 
+        self._backlinks.set_visible(self._settings.get("show_backlinks", True))
+
     # ── Key handler ───────────────────────────────────────────────────────────
 
     def _on_key_pressed(self, _ctrl, keyval: int, _keycode: int, _state) -> bool:
@@ -273,7 +321,6 @@ class CodexWindow(Adw.ApplicationWindow):
         self._content_header.set_visible(False)
         self._toolbar.set_visible(False)
         self._backlinks.set_visible(False)
-        self._tag_bar.set_visible(False)
         self._footer.set_visible(False)
 
         # Hint overlay
@@ -287,8 +334,7 @@ class CodexWindow(Adw.ApplicationWindow):
 
         self._content_header.set_visible(True)
         self._toolbar.set_visible(True)
-        self._backlinks.set_visible(True)
-        self._tag_bar.set_visible(True)
+        self._backlinks.set_visible(self._settings.get("show_backlinks", True))
         self._footer.set_visible(True)
 
         self._focus_hint.set_visible(False)
@@ -378,6 +424,8 @@ class CodexWindow(Adw.ApplicationWindow):
             w = int(value)
             self._split_view.set_min_sidebar_width(w)
             self._split_view.set_max_sidebar_width(w + 60)
+        elif key == "show_backlinks":
+            self._backlinks.set_visible(bool(value))
 
     # ── Signals ───────────────────────────────────────────────────────────────
 
@@ -395,6 +443,7 @@ class CodexWindow(Adw.ApplicationWindow):
         self._content_stack.set_visible_child_name("editor")
         self._backlinks.update(doc, self._db)
         self._tag_bar.load(doc, self._db)
+        self._tag_bar.set_visible(True)
         self._export_btn.set_sensitive(True)
         self._sidebar.refresh()
 

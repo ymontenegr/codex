@@ -97,34 +97,6 @@ class EditorToolbar(Gtk.Box):
             lambda: self._editor and self._editor.trigger_crossref(),
         )
 
-        # Push the find bar to the right
-        spacer = Gtk.Box(hexpand=True)
-        self.append(spacer)
-
-        self._sep()
-
-        # Find in document
-        self._find_entry = Gtk.SearchEntry(
-            placeholder_text="Buscar en documento…",
-            width_chars=20,
-        )
-        self._find_entry.connect("search-changed", self._on_find_changed)
-        self._find_entry.connect(
-            "next-match", lambda _: self._editor and self._editor.find_next()
-        )
-        self._find_entry.connect(
-            "previous-match", lambda _: self._editor and self._editor.find_prev()
-        )
-        self._find_entry.connect(
-            "stop-search",
-            lambda e: (e.set_text(""), self._editor and self._editor.find_text("")),
-        )
-        self.append(self._find_entry)
-
-    def _on_find_changed(self, entry: Gtk.SearchEntry) -> None:
-        if self._editor:
-            self._editor.find_text(entry.get_text())
-
     # ── Command helpers ───────────────────────────────────────────────────────
 
     def _cmd(self, command: str) -> None:

@@ -96,6 +96,17 @@ class PreferencesWindow(Adw.PreferencesWindow):
         self._size_row.connect("notify::value", self._on_font_size_changed)
         font_group.add(self._size_row)
 
+        content_group = Adw.PreferencesGroup(title="Contenido del editor")
+        page.add(content_group)
+
+        self._backlinks_row = Adw.SwitchRow(
+            title="Referencias entrantes",
+            subtitle="Mostrar documentos que enlazan al documento actual",
+        )
+        self._backlinks_row.set_active(self._settings.get("show_backlinks", True))
+        self._backlinks_row.connect("notify::active", self._on_backlinks_changed)
+        content_group.add(self._backlinks_row)
+
     # ── Sidebar ───────────────────────────────────────────────────────────────
 
     def _build_sidebar_page(self) -> None:
@@ -198,6 +209,13 @@ class PreferencesWindow(Adw.PreferencesWindow):
         self._settings.save()
         if self._on_apply:
             self._on_apply("editor_font_size", size)
+
+    def _on_backlinks_changed(self, row: Adw.SwitchRow, _param) -> None:
+        active = row.get_active()
+        self._settings.set("show_backlinks", active)
+        self._settings.save()
+        if self._on_apply:
+            self._on_apply("show_backlinks", active)
 
     def _on_sidebar_width_changed(self, row: Adw.SpinRow, _param) -> None:
         width = int(row.get_value())

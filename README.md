@@ -140,6 +140,11 @@ codex/
 
 ## Historial de versiones
 
+### v1.5.0
+**Nuevas funcionalidades**
+- Toggle en preferencias (página Editor → Contenido del editor) para habilitar o deshabilitar la sección "Referencias entrantes" sin reiniciar la aplicación
+- La visibilidad de las referencias entrantes se respeta al salir del modo de escritura enfocada
+
 ### v1.4.0
 **Corrección de errores**
 - Texto invisible en la opción "Eliminar" del menú contextual dentro del `Popover` — la combinación de clases CSS `flat` + `destructive-action` en `Gtk.Button` hace el texto transparente en Libadwaita; corregido aplicando la clase `error` directamente al `Gtk.Label`
