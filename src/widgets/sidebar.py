@@ -169,10 +169,6 @@ class CodexSidebar(Gtk.Box):
         rclick.connect("pressed", self._on_right_click)
         self._tree.add_controller(rclick)
 
-        lclick = Gtk.GestureClick(button=1)
-        lclick.connect("pressed", self._on_left_click)
-        self._tree.add_controller(lclick)
-
         outer.append(self._tree)
 
         # ── Favorites section ─────────────────────────────────────────────────
@@ -506,30 +502,20 @@ class CodexSidebar(Gtk.Box):
 
     # ── Tree events ───────────────────────────────────────────────────────────
 
-    def _on_row_activated(self, _tree, path, _col) -> None:
+    def _on_row_activated(self, _tree, path, col) -> None:
         it = self._filter.get_iter(path)
         kind = self._filter.get_value(it, _C_TYPE)
         item = self._filter.get_value(it, _C_ITEM)
+        if col is self._star_col:
+            if kind == "document":
+                self._db.toggle_favorite(item)
+                self._filter.refilter()
+                self._load_favorites()
+            return
         if kind == "document":
             self.emit("document-selected", item)
         else:
             self._show_context_menu_at_path(path, kind, item)
-
-    def _on_left_click(self, gesture, _n, x, y) -> None:
-        result = self._tree.get_path_at_pos(int(x), int(y))
-        if not result or result[0] is None:
-            return
-        path, col = result[0], result[1]
-        if col is not self._star_col:
-            return
-        gesture.set_state(Gtk.EventSequenceState.CLAIMED)
-        it = self._filter.get_iter(path)
-        if self._filter.get_value(it, _C_TYPE) != "document":
-            return
-        doc = self._filter.get_value(it, _C_ITEM)
-        self._db.toggle_favorite(doc)
-        self._filter.refilter()
-        self._load_favorites()
 
     def _on_right_click(self, _gesture, _n, x, y) -> None:
         result = self._tree.get_path_at_pos(int(x), int(y))
