@@ -87,6 +87,8 @@ class CodexWindow(Adw.ApplicationWindow):
 
         # ── Content pane ──────────────────────────────────────────────────────
         self._content_toolbar_view = Adw.ToolbarView()
+        # FLAT matches the sidebar header style (no shadow/elevation difference)
+        self._content_toolbar_view.set_top_bar_style(Adw.ToolbarStyle.FLAT)
 
         self._content_header = Adw.HeaderBar()
         self._win_title = Adw.WindowTitle(title="Codex", subtitle="v1.4.0")
@@ -143,14 +145,19 @@ class CodexWindow(Adw.ApplicationWindow):
 
         self._content_toolbar_view.add_top_bar(self._content_header)
 
-        self._toolbar = EditorToolbar()
-        self._content_toolbar_view.add_top_bar(self._toolbar)
-
         self._content_stack = Gtk.Stack()
         self._content_stack.set_transition_type(Gtk.StackTransitionType.CROSSFADE)
         self._content_stack.add_named(self._build_empty_page(), "empty")
         self._content_stack.add_named(self._build_editor_page(), "editor")
-        self._content_toolbar_view.set_content(self._content_stack)
+
+        # EditorToolbar lives inside the content (not as a top_bar) so that
+        # it keeps its own "toolbar" CSS background and is visually distinct
+        # from both the flat header above and the editor canvas below.
+        self._toolbar = EditorToolbar()
+        content_wrapper = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        content_wrapper.append(self._toolbar)
+        content_wrapper.append(self._content_stack)
+        self._content_toolbar_view.set_content(content_wrapper)
 
         content_nav = Adw.NavigationPage(title="Codex")
         content_nav.set_child(self._content_toolbar_view)
