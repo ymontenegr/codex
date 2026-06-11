@@ -140,6 +140,17 @@ codex/
 
 ## Historial de versiones
 
+### v1.7.0
+**Nuevas funcionalidades**
+- Sistema de pestañas: cada documento se abre en su propia pestaña (`Adw.TabView` + `Adw.TabBar`); clic en un documento abre nueva pestaña, clic en pestaña existente cambia a ella
+- Cada pestaña muestra el nombre del documento y un botón × para cerrarla; al cerrar la última pestaña vuelve a la pantalla de inicio
+- Al cerrar una pestaña con cambios pendientes, el documento se guarda automáticamente
+- Documentos en el sidebar mostrados como hipervínculos (texto azul subrayado) para indicar que son navegables
+- Sección "Etiquetas" en el sidebar ahora es colapsable (mismo comportamiento que "Favoritos" y "Recientes"), contraída por defecto y anclada en la parte inferior del panel
+
+**Corrección de errores**
+- Sección "Etiquetas" aparecía a la mitad del sidebar en lugar de la parte inferior — movida fuera del `ScrolledWindow` junto a Favoritos y Recientes
+
 ### v1.6.0
 **Nuevas funcionalidades**
 - Barra de herramientas con controles de tipografía integrados: selector de familia de fuente (12 opciones), spinner de tamaño de texto y paleta de color de texto (12 colores) directamente en la toolbar

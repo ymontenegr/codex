@@ -219,22 +219,22 @@ class CodexSidebar(Gtk.Box):
         )
         self._fav_section_box.append(self._fav_revealer)
 
-        # ── Tags section ──────────────────────────────────────────────────────
+        # ── Tags section (collapsible) ────────────────────────────────────────
         self._tags_section_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self._tags_section_box.append(Gtk.Separator())
 
-        tags_hdr = Gtk.Box(
+        tags_inner = Gtk.Box(
             orientation=Gtk.Orientation.HORIZONTAL,
             spacing=6,
             margin_start=12,
             margin_end=12,
-            margin_top=9,
+            margin_top=6,
             margin_bottom=6,
         )
         tags_icon = Gtk.Image.new_from_icon_name("tag-symbolic")
         tags_icon.add_css_class("dim-label")
-        tags_hdr.append(tags_icon)
-        tags_hdr.append(
+        tags_inner.append(tags_icon)
+        tags_inner.append(
             Gtk.Label(
                 label="Etiquetas",
                 css_classes=["heading"],
@@ -242,15 +242,28 @@ class CodexSidebar(Gtk.Box):
                 hexpand=True,
             )
         )
-        self._tags_section_box.append(tags_hdr)
+        self._tags_arrow = Gtk.Image.new_from_icon_name("go-next-symbolic")
+        self._tags_arrow.add_css_class("dim-label")
+        tags_inner.append(self._tags_arrow)
+
+        tags_toggle_btn = Gtk.Button(css_classes=["flat"], child=tags_inner)
+        tags_toggle_btn.set_hexpand(True)
+        tags_toggle_btn.connect("clicked", self._toggle_tags)
+        self._tags_section_box.append(tags_toggle_btn)
 
         self._tags_container = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        self._tags_section_box.append(self._tags_container)
-
-        outer.append(self._tags_section_box)
+        self._tags_revealer = Gtk.Revealer(
+            child=self._tags_container,
+            transition_type=Gtk.RevealerTransitionType.SLIDE_DOWN,
+            reveal_child=False,
+        )
+        self._tags_section_box.append(self._tags_revealer)
 
         scroll.set_child(outer)
         container.append(scroll)
+
+        # ── Tags section — pinned above favorites ─────────────────────────────
+        container.append(self._tags_section_box)
 
         # ── Favorites section — pinned above recents ──────────────────────────
         container.append(self._fav_section_box)
@@ -509,16 +522,27 @@ class CodexSidebar(Gtk.Box):
     # ── Cell data functions ───────────────────────────────────────────────────
 
     def _text_cell_data(self, _col, cell, model, it, _data) -> None:
+        kind = model.get_value(it, _C_TYPE)
         name = model.get_value(it, _C_NAME) or ""
+        is_doc = kind == "document"
         q = self._search_query
+
         if q and q in name.lower():
             idx = name.lower().find(q)
             pre = GLib.markup_escape_text(name[:idx])
             mid = GLib.markup_escape_text(name[idx : idx + len(q)])
             post = GLib.markup_escape_text(name[idx + len(q) :])
-            cell.set_property("markup", f"{pre}<b><u>{mid}</u></b>{post}")
+            text = f"{pre}<b><u>{mid}</u></b>{post}"
         else:
-            cell.set_property("markup", GLib.markup_escape_text(name))
+            text = GLib.markup_escape_text(name)
+
+        if is_doc:
+            cell.set_property(
+                "markup",
+                f'<span foreground="#3584e4" underline="single">{text}</span>',
+            )
+        else:
+            cell.set_property("markup", text)
 
     def _star_cell_data(self, _col, cell, model, it, _data) -> None:
         kind = model.get_value(it, _C_TYPE)
@@ -589,6 +613,13 @@ class CodexSidebar(Gtk.Box):
         expanded = self._rec_revealer.get_reveal_child()
         self._rec_revealer.set_reveal_child(not expanded)
         self._rec_arrow.set_from_icon_name(
+            "go-down-symbolic" if not expanded else "go-next-symbolic"
+        )
+
+    def _toggle_tags(self, _btn) -> None:
+        expanded = self._tags_revealer.get_reveal_child()
+        self._tags_revealer.set_reveal_child(not expanded)
+        self._tags_arrow.set_from_icon_name(
             "go-down-symbolic" if not expanded else "go-next-symbolic"
         )
 

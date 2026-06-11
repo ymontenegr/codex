@@ -35,6 +35,7 @@ class CodexWindow(Adw.ApplicationWindow):
         self._db.connect()
         self._indexer = Indexer(self._db, self._storage)
         self._current_doc: Document | None = None
+        self._active_editor: CodexEditorWidget | None = None
         self._focus_mode = False
 
         self._setup_ui()
@@ -139,7 +140,7 @@ class CodexWindow(Adw.ApplicationWindow):
         # title right and can push the close button off-screen when the toolbar
         # minimum width increases (e.g. when TagBar becomes visible).
         self._content_header.set_show_start_title_buttons(False)
-        self._win_title = Adw.WindowTitle(title="Codex", subtitle="v1.6.0")
+        self._win_title = Adw.WindowTitle(title="Codex", subtitle="v1.7.0")
         self._content_header.set_title_widget(self._win_title)
 
         # Graph view button
@@ -181,9 +182,7 @@ class CodexWindow(Adw.ApplicationWindow):
 
         self._content_toolbar_view.add_top_bar(self._content_header)
 
-        # ── Toolbar row — must be created BEFORE _build_editor_page() ─────────
-        # _build_editor_page() calls self._toolbar.set_editor(); if toolbar
-        # doesn't exist yet, it raises AttributeError and breaks all setup.
+        # ── Toolbar row ───────────────────────────────────────────────────────
         self._toolbar = EditorToolbar()
 
         # Tag section — hidden until a document is opened
@@ -207,27 +206,61 @@ class CodexWindow(Adw.ApplicationWindow):
         )
         self._find_entry.connect(
             "search-changed",
-            lambda e: self._editor.find_text(e.get_text()),
+            lambda e: self._active_editor and self._active_editor.find_text(e.get_text()),
         )
         self._find_entry.connect(
-            "next-match", lambda _: self._editor.find_next()
+            "next-match", lambda _: self._active_editor and self._active_editor.find_next()
         )
         self._find_entry.connect(
-            "previous-match", lambda _: self._editor.find_prev()
+            "previous-match", lambda _: self._active_editor and self._active_editor.find_prev()
         )
         self._find_entry.connect(
             "stop-search",
-            lambda e: (e.set_text(""), self._editor.find_text("")),
+            lambda e: (e.set_text(""), self._active_editor and self._active_editor.find_text("")),
         )
         self._toolbar.append(self._find_entry)
 
-        # ── Content stack — built after toolbar so _build_editor_page() works ─
+        # ── Tab view (one CodexEditorWidget per open document) ────────────────
+        self._tab_view = Adw.TabView()
+        self._tab_view.set_vexpand(True)
+        self._tab_view.connect("notify::selected-page", self._on_tab_switched)
+        self._tab_view.connect("close-page", self._on_tab_close_requested)
+
+        self._tab_bar = Adw.TabBar()
+        self._tab_bar.set_view(self._tab_view)
+        self._tab_bar.set_autohide(False)
+        self._tab_bar.set_visible(False)
+
+        # Backlinks panel — shared, updates on tab switch
+        self._backlinks = BacklinksPanel()
+        self._backlinks.connect("document-selected", self._on_document_selected)
+
+        # Footer: word count + reading time — shared
+        self._footer = Gtk.Label(
+            css_classes=["caption", "numeric"],
+            halign=Gtk.Align.END,
+            margin_end=12,
+            margin_top=4,
+            margin_bottom=4,
+        )
+
+        # Editor area: tab view + shared panels
+        editor_area = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        editor_area.set_vexpand(True)
+        editor_area.append(self._tab_view)
+        editor_area.append(Gtk.Separator())
+        editor_area.append(self._backlinks)
+        editor_area.append(self._footer)
+
+        # ── Content stack ─────────────────────────────────────────────────────
         self._content_stack = Gtk.Stack()
         self._content_stack.set_transition_type(Gtk.StackTransitionType.CROSSFADE)
+        self._content_stack.set_vexpand(True)
         self._content_stack.add_named(self._build_empty_page(), "empty")
-        self._content_stack.add_named(self._build_editor_page(), "editor")
+        self._content_stack.add_named(editor_area, "editor")
 
         content_wrapper = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        content_wrapper.append(self._tab_bar)
         content_wrapper.append(self._toolbar)
         content_wrapper.append(self._content_stack)
         self._content_toolbar_view.set_content(content_wrapper)
@@ -251,40 +284,79 @@ class CodexWindow(Adw.ApplicationWindow):
             vexpand=True,
         )
 
-    def _build_editor_page(self) -> Gtk.Box:
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-
-        self._editor = CodexEditorWidget(
+    def _make_tab_editor(self, doc: Document) -> CodexEditorWidget:
+        """Create a new CodexEditorWidget, wire signals, and load *doc*."""
+        editor = CodexEditorWidget(
             storage=self._storage,
             db=self._db,
             indexer=self._indexer,
         )
-        self._editor.set_vexpand(True)
-        self._editor.connect("document-saved", self._on_document_saved)
-        self._editor.connect("content-changed", self._on_content_changed)
-        self._editor.connect("navigate-document", self._on_navigate_document)
-        self._editor.connect("word-count-changed", self._on_word_count_changed)
-        box.append(self._editor)
+        editor.set_vexpand(True)
+        editor.connect("document-saved", self._on_document_saved)
+        editor.connect("content-changed", self._on_content_changed)
+        editor.connect("navigate-document", self._on_navigate_document)
+        editor.connect("word-count-changed", self._on_word_count_changed)
+        editor.load_document(doc)
+        return editor
 
-        self._toolbar.set_editor(self._editor)
+    def _open_document_in_tab(self, doc: Document) -> None:
+        """Switch to the existing tab for *doc*, or open a new one."""
+        for i in range(self._tab_view.get_n_pages()):
+            page = self._tab_view.get_nth_page(i)
+            if page._doc.id == doc.id:
+                self._tab_view.set_selected_page(page)
+                return
 
-        # Backlinks panel
-        box.append(Gtk.Separator())
-        self._backlinks = BacklinksPanel()
-        self._backlinks.connect("document-selected", self._on_document_selected)
-        box.append(self._backlinks)
+        editor = self._make_tab_editor(doc)
+        page = self._tab_view.add_page(editor, None)
+        page.set_title(doc.name)
+        page.set_icon(Gio.ThemedIcon.new("document-text-symbolic"))
+        page._doc = doc
 
-        # Footer: word count + reading time
-        self._footer = Gtk.Label(
-            css_classes=["caption", "numeric"],
-            halign=Gtk.Align.END,
-            margin_end=12,
-            margin_top=4,
-            margin_bottom=4,
-        )
-        box.append(self._footer)
+        self._tab_view.set_selected_page(page)
+        self._content_stack.set_visible_child_name("editor")
+        self._tab_bar.set_visible(True)
 
-        return box
+    def _on_tab_switched(self, tab_view, _param) -> None:
+        page = tab_view.get_selected_page()
+        if page is None:
+            return
+        doc = page._doc
+        editor = page.get_child()
+
+        self._current_doc = doc
+        self._active_editor = editor
+        self._toolbar.set_editor(editor)
+
+        self._win_title.set_title(doc.name)
+        self._win_title.set_subtitle("Codex")
+        self._tag_bar.load(doc, self._db)
+        self._tag_bar.set_visible(True)
+        self._backlinks.update(doc, self._db)
+        self._backlinks.set_visible(self._settings.get("show_backlinks", False))
+        self._footer.set_label("")
+
+    def _on_tab_close_requested(self, _tab_view, page) -> bool:
+        editor = page.get_child()
+        if editor.is_dirty:
+            editor.save_current()
+        editor.stop()
+        self._tab_view.close_page_finish(page, True)
+        GLib.idle_add(self._on_after_tab_closed)
+        return True
+
+    def _on_after_tab_closed(self) -> bool:
+        if self._tab_view.get_n_pages() == 0:
+            self._current_doc = None
+            self._active_editor = None
+            self._toolbar.set_editor(None)
+            self._tag_bar.set_visible(False)
+            self._tab_bar.set_visible(False)
+            self._win_title.set_title("Codex")
+            self._win_title.set_subtitle("v1.7.0")
+            self._footer.set_label("")
+            self._content_stack.set_visible_child_name("empty")
+        return GLib.SOURCE_REMOVE
 
     # ── Actions ───────────────────────────────────────────────────────────────
 
@@ -332,36 +404,35 @@ class CodexWindow(Adw.ApplicationWindow):
             self._exit_focus_mode()
 
     def _enter_focus_mode(self) -> None:
-        # Collapse sidebar so only content pane is visible
         self._split_view.set_collapsed(True)
         try:
             self._split_view.set_show_content(True)
         except AttributeError:
             pass
 
-        # Hide chrome
         self._content_header.set_visible(False)
+        self._tab_bar.set_visible(False)
         self._toolbar.set_visible(False)
         self._backlinks.set_visible(False)
         self._footer.set_visible(False)
-
-        # Hint overlay
         self._focus_hint.set_visible(True)
 
-        # Center editor content at 720 px
-        self._editor.set_focus_mode(True)
+        if self._active_editor:
+            self._active_editor.set_focus_mode(True)
 
     def _exit_focus_mode(self) -> None:
         self._split_view.set_collapsed(False)
 
         self._content_header.set_visible(True)
+        if self._tab_view.get_n_pages() > 0:
+            self._tab_bar.set_visible(True)
         self._toolbar.set_visible(True)
         self._backlinks.set_visible(self._settings.get("show_backlinks", False))
         self._footer.set_visible(True)
-
         self._focus_hint.set_visible(False)
 
-        self._editor.set_focus_mode(False)
+        if self._active_editor:
+            self._active_editor.set_focus_mode(False)
 
     # ── Graph view ────────────────────────────────────────────────────────────
 
@@ -439,9 +510,13 @@ class CodexWindow(Adw.ApplicationWindow):
                 "serif": "Georgia, Linux Libertine, serif",
             }
             css = font_map.get(str(value), font_map["system"])
-            self._editor._js(f"document.body.style.fontFamily = `{css}`;")
+            for i in range(self._tab_view.get_n_pages()):
+                ed = self._tab_view.get_nth_page(i).get_child()
+                ed._js(f"document.body.style.fontFamily = `{css}`;")
         elif key == "editor_font_size":
-            self._editor._js(f"document.body.style.fontSize = `{int(value)}px`;")
+            for i in range(self._tab_view.get_n_pages()):
+                ed = self._tab_view.get_nth_page(i).get_child()
+                ed._js(f"document.body.style.fontSize = `{int(value)}px`;")
         elif key == "sidebar_width":
             w = int(value)
             self._split_view.set_min_sidebar_width(w)
@@ -456,22 +531,15 @@ class CodexWindow(Adw.ApplicationWindow):
         self._search_overlay.toggle()
 
     def _on_document_selected(self, _widget, doc: Document) -> None:
-        self._current_doc = doc
         self._db.record_open(doc)
-        self._editor.load_document(doc)
-        self._win_title.set_title(doc.name)
-        self._win_title.set_subtitle("Codex")
-        self._footer.set_label("")
-        self._content_stack.set_visible_child_name("editor")
-        self._backlinks.update(doc, self._db)
-        self._tag_bar.load(doc, self._db)
-        self._tag_bar.set_visible(True)
+        self._open_document_in_tab(doc)
         self._sidebar.refresh()
 
     def _on_navigate_document(self, _editor, name: str) -> None:
         doc = self._db.get_document_by_name(name)
         if doc:
-            self._on_document_selected(None, doc)
+            self._db.record_open(doc)
+            self._open_document_in_tab(doc)
         else:
             self.show_toast(f"Documento «{name}» no encontrado")
 
@@ -483,7 +551,9 @@ class CodexWindow(Adw.ApplicationWindow):
     def _on_content_changed(self, _editor) -> None:
         pass
 
-    def _on_word_count_changed(self, _editor, count: int) -> None:
+    def _on_word_count_changed(self, editor, count: int) -> None:
+        if editor is not self._active_editor:
+            return
         if count == 1:
             words = "1 palabra"
         else:
@@ -575,8 +645,10 @@ class CodexWindow(Adw.ApplicationWindow):
     # ── Helpers ───────────────────────────────────────────────────────────────
 
     def _editor_save_and_toast(self) -> None:
-        if self._editor.is_dirty:
-            self._editor.save_current()
+        if not self._active_editor:
+            return
+        if self._active_editor.is_dirty:
+            self._active_editor.save_current()
         else:
             self.show_toast("Sin cambios")
 
@@ -588,8 +660,10 @@ class CodexWindow(Adw.ApplicationWindow):
     def do_close_request(self) -> bool:
         if self._focus_mode:
             self._exit_focus_mode()
-        if self._editor.is_dirty:
-            self._editor.save_current()
-        self._editor.stop()
+        for i in range(self._tab_view.get_n_pages()):
+            ed = self._tab_view.get_nth_page(i).get_child()
+            if ed.is_dirty:
+                ed.save_current()
+            ed.stop()
         self._db.close()
         return False

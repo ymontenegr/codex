@@ -37,7 +37,7 @@ from .widgets.splash import SplashScreen
 from .window import CodexWindow
 
 APP_ID = "io.github.ymontenegr.Codex"
-APP_VERSION = "1.6.0"
+APP_VERSION = "1.7.0"
 DEVELOPER_NAME = "Yovani Montenegro"
 
 
